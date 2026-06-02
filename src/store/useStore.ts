@@ -183,24 +183,21 @@ export const useStore = create<StoreState>((set, get) => ({
   initStore: async () => {
     set({ isApiLoading: true });
     try {
-      const isConnected = await api.checkHealth();
-      if (isConnected) {
-        // Fetch live contacts and campaigns from PostgreSQL/Supabase
-        const contacts = await api.getContacts();
-        const campaigns = await api.getCampaigns();
-        
-        set({
-          contacts,
-          campaigns,
-          isApiConnected: true,
-          isApiLoading: false
-        });
-        
-        toast.success("Synchronized with live Render API & Supabase PostgreSQL.");
-      } else {
-        set({ isApiConnected: false, isApiLoading: false });
-        toast.info("Render backend offline. Running in premium simulator mode.");
-      }
+      // Fetch live data directly so the browser calls concrete Render endpoints
+      // such as https://wo-integration.onrender.com/contacts/.
+      const [contacts, campaigns] = await Promise.all([
+        api.getContacts(),
+        api.getCampaigns()
+      ]);
+      
+      set({
+        contacts,
+        campaigns,
+        isApiConnected: true,
+        isApiLoading: false
+      });
+      
+      toast.success("Synchronized with live Render API & Supabase PostgreSQL.");
     } catch (e) {
       set({ isApiConnected: false, isApiLoading: false });
       toast.info("Render backend offline. Running in premium simulator mode.");

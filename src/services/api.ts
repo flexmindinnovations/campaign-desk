@@ -1,6 +1,6 @@
 import type { Contact, Campaign, CampaignMessage, CampaignAnalytics } from '../types/database';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_API_URL?.trim() || 'http://localhost:8000';
 
 interface OdooSyncResult {
   created: number;

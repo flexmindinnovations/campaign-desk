@@ -1,14 +1,6 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://wo-integration.onrender.com/:path*"
-    },
-    {
-      "source": "/api",
-      "destination": "https://wo-integration.onrender.com/"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
