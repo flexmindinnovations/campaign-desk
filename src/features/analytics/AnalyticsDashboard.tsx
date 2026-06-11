@@ -46,10 +46,10 @@ export function AnalyticsDashboard() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="p-6 space-y-6 max-w-7xl mx-auto grid-bg-lines font-sans"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="p-6 space-y-6 grid-bg-dots font-sans"
     >
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -99,9 +99,9 @@ export function AnalyticsDashboard() {
       {/* Grid: Failure analysis & comparative list */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Failure breakdown panel */}
+        {/* Failure breakdown table */}
         <div className="lg:col-span-1">
-          <Card className="h-full">
+          <Card className="h-full overflow-hidden">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -111,22 +111,33 @@ export function AnalyticsDashboard() {
                 <AlertTriangle size={15} className="text-rose-500" />
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 text-xs font-semibold">
-              {[
-                { code: "Meta Code 131026", label: "Receiver Profile Unregistered", rate: "62%", desc: "The targeted cell phone is not active on WhatsApp." },
-                { code: "Meta Code 130429", label: "Cloud Rate Limit Exceeded", rate: "22%", desc: "Batch throttle size hit standard Meta Graph tier limits." },
-                { code: "Meta Code 132001", label: "Template Parameter Mismatch", rate: "11%", desc: "Substitution variable count was incorrect." },
-                { code: "Internal Timeout", label: "FastAPI server queue error", rate: "5%", desc: "Connection failed during webhook handshake." }
-              ].map((f) => (
-                <div key={f.code} className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
-                  <div className="flex justify-between items-baseline font-bold">
-                    <span className="text-slate-800 dark:text-slate-200">{f.label}</span>
-                    <span className="text-rose-500 font-mono">{f.rate}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-mono font-medium mt-1">{f.code}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal font-sans font-normal mt-1">{f.desc}</p>
-                </div>
-              ))}
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead className="bg-slate-50/70 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="px-3 py-2">Error Type</th>
+                    <th className="px-3 py-2 text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                  {[
+                    { code: "Meta Code 131026", label: "Receiver Profile Unregistered", rate: "62%", desc: "The targeted cell phone is not active on WhatsApp." },
+                    { code: "Meta Code 130429", label: "Cloud Rate Limit Exceeded", rate: "22%", desc: "Batch throttle size hit standard Meta Graph tier limits." },
+                    { code: "Meta Code 132001", label: "Template Parameter Mismatch", rate: "11%", desc: "Substitution variable count was incorrect." },
+                    { code: "Internal Timeout", label: "FastAPI server queue error", rate: "5%", desc: "Connection failed during webhook handshake." }
+                  ].map((f) => (
+                    <tr key={f.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                      <td className="px-3 py-2">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{f.label}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{f.code}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-rose-500">{f.rate}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </CardContent>
           </Card>
         </div>

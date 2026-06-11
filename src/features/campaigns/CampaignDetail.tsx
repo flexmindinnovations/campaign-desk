@@ -1,20 +1,21 @@
 import * as React from "react";
 import { useStore } from "../../store/useStore";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, 
-  Tv, 
-  Send, 
-  CheckCircle, 
-  MailOpen, 
-  AlertTriangle, 
-  Search, 
-  Clock, 
+import {
+  ArrowLeft,
+  Tv,
+  Send,
+  CheckCircle,
+  MailOpen,
+  AlertTriangle,
+  Search,
+  Clock,
   Terminal,
   Activity
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../components/ui/Card";
+import { Tooltip } from "../../components/ui/Tooltip";
 import { getCampaignStatusBadge, getDeliveryStatusBadge } from "../../components/ui/Badge";
 import { formatDate, formatNumber, formatPercent } from "../../components/ui/utils";
 
@@ -85,10 +86,10 @@ export function CampaignDetail() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="p-6 space-y-6 max-w-7xl mx-auto font-sans"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="p-6 space-y-6 grid-bg-dots font-sans"
     >
       {/* Header and Back Link */}
       <div className="space-y-4">
@@ -343,9 +344,15 @@ export function CampaignDetail() {
                         <td className="p-4 font-mono">+{contact?.phone}</td>
                         <td className="p-4">{getDeliveryStatusBadge(m.delivery_status)}</td>
                         <td className="p-4">
-                          <span className="font-mono text-[10px] text-slate-400 truncate block max-w-[180px]" title={m.whatsapp_message_id || ""}>
-                            {m.whatsapp_message_id || "N/A"}
-                          </span>
+                          {m.whatsapp_message_id ? (
+                            <Tooltip content={m.whatsapp_message_id} side="top">
+                              <span className="font-mono text-[10px] text-slate-400 truncate block max-w-[180px] cursor-help">
+                                {m.whatsapp_message_id}
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <span className="font-mono text-[10px] text-slate-400">N/A</span>
+                          )}
                         </td>
                         <td className="p-4 text-center font-mono">{m.retry_count}</td>
                         <td className="p-4 pr-6 font-mono text-slate-400">{formatDate(m.sent_at)}</td>

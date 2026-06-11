@@ -1,14 +1,13 @@
 import { useStore } from "../../store/useStore";
 import { useNavigate } from "react-router-dom";
-import { 
-  Users, 
-  Tv, 
-  Send, 
-  CheckCircle, 
-  MailOpen, 
-  AlertTriangle, 
-  Plus, 
-  ArrowUpRight, 
+import {
+  Users,
+  Tv,
+  Send,
+  CheckCircle,
+  MailOpen,
+  AlertTriangle,
+  ArrowUpRight,
   ArrowDownRight,
   Database,
   TrendingUp
@@ -104,42 +103,31 @@ export function Dashboard() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="p-6 space-y-6 max-w-7xl mx-auto grid-bg-lines"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="p-6 space-y-6 grid-bg-dots"
     >
       {/* Header and Welcome Panel */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-display text-slate-900 dark:text-white leading-tight">
-            Welcome back, Imran
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">
-            Here's the delivery performance overview for your WhatsApp Campaign System.
-          </p>
-        </div>
-
-        {/* Floating Quick Action */}
-        <button
-          onClick={() => navigate('/campaigns')}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer shrink-0"
-        >
-          <Plus size={15} />
-          Create Campaign
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold font-display text-slate-900 dark:text-white leading-tight">
+          Welcome back, Imran
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">
+          Here's the delivery performance overview for your WhatsApp Campaign System.
+        </p>
       </div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {kpis.map((kpi, index) => {
+        {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
             <motion.div
               key={kpi.title}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
               onClick={() => navigate(kpi.path)}
               className="cursor-pointer"
             >

@@ -27,6 +27,7 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
   const startCampaign = useStore(state => state.startCampaign);
 
   const [step, setStep] = React.useState(1);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // Step 1 State
   const [name, setName] = React.useState("");
@@ -116,6 +117,7 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
       ? [{ type: "body" as const, parameters: defaultParams[selectedTemplateName as keyof typeof defaultParams] }]
       : [];
 
+    setIsLoading(true);
     try {
       const newCampaignId = await addCampaign({
         name,
@@ -132,11 +134,11 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
       } else {
         toast.success(`Campaign "${name}" scheduled successfully for ${scheduleDate} ${scheduleTime}.`);
       }
-    } catch (e) {
+      onClose();
+    } catch {
       toast.error("Failed to execute campaign actions.");
+      setIsLoading(false);
     }
-
-    onClose();
   };
 
   const getStepTitle = () => {
@@ -551,10 +553,16 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
               ) : (
                 <button
                   onClick={handleLaunch}
-                  className="flex items-center gap-2 px-5 py-2 text-xs font-extrabold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-lg shadow-emerald-500/25 transition-all cursor-pointer animate-pulse"
+                  disabled={isLoading}
+                  className={cn(
+                    "flex items-center gap-2 px-5 py-2 text-xs font-extrabold rounded-lg shadow-lg transition-all",
+                    isLoading
+                      ? "bg-emerald-500/60 text-white cursor-not-allowed shadow-emerald-500/10"
+                      : "text-white bg-emerald-500 hover:bg-emerald-600 cursor-pointer shadow-emerald-500/25 animate-pulse"
+                  )}
                 >
                   <Check size={14} />
-                  {sendOption === "now" ? "Launch Campaign" : "Schedule Campaign"}
+                  {isLoading ? "Processing..." : sendOption === "now" ? "Launch Campaign" : "Schedule Campaign"}
                 </button>
               )}
             </div>

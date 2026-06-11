@@ -13,36 +13,73 @@ import {
   Legend
 } from "recharts";
 
-// 7-day mock delivery data
-const DAILY_DELIVERY_DATA = [
-  { day: "May 27", sent: 120, delivered: 115, read: 82 },
-  { day: "May 28", sent: 150, delivered: 142, read: 98 },
-  { day: "May 29", sent: 180, delivered: 175, read: 125 },
-  { day: "May 30", sent: 140, delivered: 138, read: 110 },
-  { day: "May 31", sent: 210, delivered: 202, read: 152 },
-  { day: "Jun 01", sent: 250, delivered: 245, read: 198 },
-  { day: "Jun 02", sent: 290, delivered: 282, read: 210 }
-];
-
-// Campaign comparison data
-const CAMPAIGN_COMPARING_DATA = [
-  { name: "Promo Q1", deliveryRate: 98, readRate: 85 },
-  { name: "Sale Alert", deliveryRate: 95, readRate: 78 },
-  { name: "Tax Invoice", deliveryRate: 92, readRate: 64 },
-  { name: "Pay Link", deliveryRate: 88, readRate: 58 },
-  { name: "HelloWorld", deliveryRate: 99, readRate: 92 }
-];
+import { useStore } from "../../store/useStore";
+import type { CampaignMessage, Campaign } from "../../types/database";
 
 interface ChartWrapperProps {
   height?: number;
 }
 
+const getDailyDeliveryData = (messages: CampaignMessage[]) => {
+  if (!messages.length) return [];
+
+  const dailyStats: Record<string, { sent: number; delivered: number; read: number }> = {};
+
+  messages.forEach(msg => {
+    if (msg.campaign_id === 9999 || !msg.sent_at) return;
+
+    const date = new Date(msg.sent_at);
+    const day = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    if (!dailyStats[day]) {
+      dailyStats[day] = { sent: 0, delivered: 0, read: 0 };
+    }
+
+    if (msg.delivery_status !== 'pending') {
+      dailyStats[day].sent += 1;
+    }
+    if (msg.delivery_status === 'delivered' || msg.delivery_status === 'read') {
+      dailyStats[day].delivered += 1;
+    }
+    if (msg.delivery_status === 'read') {
+      dailyStats[day].read += 1;
+    }
+  });
+
+  return Object.entries(dailyStats)
+    .map(([day, stats]) => ({ day, ...stats }))
+    .slice(-7);
+};
+
+const getCampaignComparisonData = (campaigns: Campaign[], messages: CampaignMessage[]) => {
+  if (!campaigns.length) return [];
+
+  return campaigns.slice(0, 5).map(campaign => {
+    const campaignMessages = messages.filter(m => m.campaign_id === campaign.id && m.campaign_id !== 9999);
+    const sent = campaignMessages.filter(m => m.delivery_status !== 'pending').length;
+    const delivered = campaignMessages.filter(m => m.delivery_status === 'delivered' || m.delivery_status === 'read').length;
+    const read = campaignMessages.filter(m => m.delivery_status === 'read').length;
+
+    const deliveryRate = sent > 0 ? Math.round((delivered / sent) * 100) : 0;
+    const readRate = delivered > 0 ? Math.round((read / delivered) * 100) : 0;
+
+    return {
+      name: campaign.name,
+      deliveryRate,
+      readRate
+    };
+  });
+};
+
 export function DeliveryAreaChart({ height = 300 }: ChartWrapperProps) {
+  const messages = useStore(state => state.messages);
+  const data = getDailyDeliveryData(messages);
+
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart
-          data={DAILY_DELIVERY_DATA}
+          data={data.length > 0 ? data : []}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
           <defs>
@@ -103,11 +140,14 @@ export function DeliveryAreaChart({ height = 300 }: ChartWrapperProps) {
 }
 
 export function SendingVolumeBarChart({ height = 300 }: ChartWrapperProps) {
+  const messages = useStore(state => state.messages);
+  const data = getDailyDeliveryData(messages);
+
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart
-          data={DAILY_DELIVERY_DATA}
+          data={data.length > 0 ? data : []}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
@@ -145,11 +185,14 @@ export function SendingVolumeBarChart({ height = 300 }: ChartWrapperProps) {
 }
 
 export function WeeklyTrendLineChart({ height = 300 }: ChartWrapperProps) {
+  const messages = useStore(state => state.messages);
+  const data = getDailyDeliveryData(messages);
+
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart
-          data={DAILY_DELIVERY_DATA}
+          data={data.length > 0 ? data : []}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
@@ -188,11 +231,15 @@ export function WeeklyTrendLineChart({ height = 300 }: ChartWrapperProps) {
 }
 
 export function CampaignComparisonBarChart({ height = 300 }: ChartWrapperProps) {
+  const campaigns = useStore(state => state.campaigns);
+  const messages = useStore(state => state.messages);
+  const data = getCampaignComparisonData(campaigns, messages);
+
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart
-          data={CAMPAIGN_COMPARING_DATA}
+          data={data.length > 0 ? data : []}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />

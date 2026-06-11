@@ -2,6 +2,7 @@ import * as React from "react";
 import { useStore } from "../../store/useStore";
 import { useLocation } from "react-router-dom";
 import { Menu, Sun, Moon, RefreshCw } from "lucide-react";
+import { Tooltip } from "../ui/Tooltip";
 import { toast } from "../ui/Toast";
 import { cn } from "../ui/utils";
 
@@ -112,13 +113,16 @@ export function Header({ onMenuClick }: HeaderProps) {
         </button>
 
         {/* Theme Toggle Button */}
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80 cursor-pointer"
-          title="Toggle Light/Dark Theme"
-        >
-          {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-        </button>
+        <Tooltip content={theme === 'light' ? 'Dark mode' : 'Light mode'} side="bottom">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80 cursor-pointer"
+            aria-label="Toggle theme"
+          >
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+        </Tooltip>
       </div>
     </header>
   );

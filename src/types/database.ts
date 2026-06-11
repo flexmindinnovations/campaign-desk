@@ -99,3 +99,53 @@ export interface CampaignAnalytics {
   read_rate: number;
   failure_rate: number;
 }
+
+export interface InvoiceLine {
+  id?: number;
+  name: string;
+  quantity: number;
+  price_unit: number;
+  price_subtotal?: number;
+}
+
+export interface Invoice {
+  id: number;
+  name: string;
+  partner_id: [number, string] | number;
+  partner_name?: string;
+  invoice_date: string;
+  amount_total: number;
+  state: 'draft' | 'posted' | 'cancel';
+  payment_state: 'not_paid' | 'in_payment' | 'paid' | 'partial';
+  invoice_line_ids?: InvoiceLine[];
+}
+
+// ── Conversation / Chat ───────────────────────────────────────────────────────
+
+export type MessageRole = 'user' | 'assistant';
+
+export type WsStatus = 'connected' | 'disconnected' | 'reconnecting';
+
+export interface ConversationMessage {
+  id: number;
+  contact_phone: string;
+  role: MessageRole;
+  content: string;
+  wamid: string | null;
+  created_at: string;
+}
+
+export interface ConversationSummary {
+  contact_phone: string;
+  last_message: string;
+  last_role: MessageRole;
+  last_message_at: string;
+  message_count: number;
+}
+
+export interface WsEvent {
+  type: 'new_message' | 'history';
+  message?: ConversationMessage;
+  messages?: ConversationMessage[];
+}
+

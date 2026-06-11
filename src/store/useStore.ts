@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import type { Contact, Campaign, CampaignMessage, WhatsAppTemplate, RecentActivity, WhatsAppSettings, OdooSettings, SystemSettings, CampaignAnalytics, DeliveryStatus } from '../types/database';
-import { getSeededContacts, INITIAL_CAMPAIGNS, generateMockMessages, INITIAL_TEMPLATES, INITIAL_WHATSAPP_SETTINGS, INITIAL_ODOO_SETTINGS, INITIAL_SYSTEM_SETTINGS, INITIAL_ACTIVITIES } from '../services/mockDatabase';
+import type { Contact, Campaign, CampaignMessage, WhatsAppTemplate, RecentActivity, WhatsAppSettings, OdooSettings, SystemSettings, CampaignAnalytics, DeliveryStatus, Invoice, TemplateComponent } from '../types/database';
 import { api } from '../services/api';
 import { toast } from '../components/ui/Toast';
 
@@ -16,6 +15,8 @@ interface StoreState {
   messages: CampaignMessage[];
   templates: WhatsAppTemplate[];
   activities: RecentActivity[];
+  invoices: Invoice[];
+
   
   // Settings
   whatsappSettings: WhatsAppSettings;
@@ -34,6 +35,7 @@ interface StoreState {
   isApiConnected: boolean;
   isApiLoading: boolean;
   campaignAnalytics: Record<number, CampaignAnalytics>;
+  pollingInterval: number | null;
 
   // Theme Actions
   toggleTheme: () => void;
@@ -59,6 +61,8 @@ interface StoreState {
   // API Actions
   initStore: () => Promise<void>;
   fetchCampaignDetailsAndAnalytics: (campaignId: number) => Promise<void>;
+  startPollingCampaigns: (intervalMs?: number) => void;
+  stopPollingCampaigns: () => void;
   
   // Contact Actions
   addManualContact: (contact: Omit<Contact, 'id' | 'synced_at' | 'source'>) => Promise<void>;
@@ -73,13 +77,19 @@ interface StoreState {
   updateOdooSettings: (settings: Partial<OdooSettings>) => void;
   updateSystemSettings: (settings: Partial<SystemSettings>) => void;
   
-  // Chat Actions
+  // Invoice Actions
+  fetchInvoices: () => Promise<void>;
+  createInvoice: (invoiceData: { partner_id: number; invoice_date?: string; lines: Array<{ name: string; quantity: number; price_unit: number }> }) => Promise<number>;
+  postInvoice: (id: number) => Promise<void>;
+  sendInvoiceWhatsApp: (id: number, payload: { template_name: string; template_language?: string; company_name?: string; invoice_url?: string }) => Promise<void>;
+
+  
   sendChatMessage: (
     contactId: number,
     messageText: string,
     isIncoming?: boolean,
     campaignId?: number | null,
-    templateDetails?: { templateName: string; components: any[] } | null
+    templateDetails?: { templateName: string; components: TemplateComponent[] } | null
   ) => Promise<void>;
   setActiveChatContactId: (id: number | null) => void;
   
@@ -98,50 +108,82 @@ const getLocalStorage = <T>(key: string, fallback: T): T => {
   try {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : fallback;
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error(error);
     return fallback;
   }
 };
 
-const setLocalStorage = (key: string, value: any) => {
+const setLocalStorage = (key: string, value: unknown) => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    // Ignore
+  } catch (error: unknown) {
+    console.error(error);
   }
 };
 
-const SEED_CONTACTS = getSeededContacts();
-const SEED_MESSAGES = generateMockMessages(INITIAL_CAMPAIGNS, SEED_CONTACTS);
+// Clear old mock data from localStorage on first load - start fresh with API data
+const clearOldMockData = () => {
+  const keysToClean = ['contacts', 'campaigns', 'messages', 'templates', 'activities', 'invoices'];
+  keysToClean.forEach(key => localStorage.removeItem(key));
+};
+
+if (typeof window !== 'undefined') {
+  clearOldMockData();
+}
+
+const DEFAULT_WHATSAPP_SETTINGS: WhatsAppSettings = {
+  phone_number_id: '',
+  business_account_id: '',
+  token: '',
+  status: 'disconnected'
+};
+
+const DEFAULT_ODOO_SETTINGS: OdooSettings = {
+  url: '',
+  db: '',
+  username: '',
+  last_sync: null
+};
+
+const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+  batch_size: 50,
+  retry_count: 3,
+  message_delay: 1
+};
 
 export const useStore = create<StoreState>((set, get) => ({
+
   // Theme & Navigation
   theme: getLocalStorage<'light' | 'dark'>('theme', 'dark'),
   activeSidebarTab: 'dashboard',
   sidebarCollapsed: getLocalStorage<boolean>('sidebarCollapsed', false),
-  
+
   // Database Tables
-  contacts: getLocalStorage<Contact[]>('contacts', SEED_CONTACTS),
-  campaigns: getLocalStorage<Campaign[]>('campaigns', INITIAL_CAMPAIGNS),
-  messages: getLocalStorage<CampaignMessage[]>('messages', SEED_MESSAGES),
-  templates: getLocalStorage<WhatsAppTemplate[]>('templates', INITIAL_TEMPLATES),
-  activities: getLocalStorage<RecentActivity[]>('activities', INITIAL_ACTIVITIES),
-  
+  contacts: getLocalStorage<Contact[]>('contacts', []),
+  campaigns: getLocalStorage<Campaign[]>('campaigns', []),
+  messages: getLocalStorage<CampaignMessage[]>('messages', []),
+  templates: getLocalStorage<WhatsAppTemplate[]>('templates', []),
+  activities: getLocalStorage<RecentActivity[]>('activities', []),
+  invoices: getLocalStorage<Invoice[]>('invoices', []),
+
+
   // Settings
-  whatsappSettings: getLocalStorage<WhatsAppSettings>('whatsappSettings', INITIAL_WHATSAPP_SETTINGS),
-  odooSettings: getLocalStorage<OdooSettings>('odooSettings', INITIAL_ODOO_SETTINGS),
-  systemSettings: getLocalStorage<SystemSettings>('systemSettings', INITIAL_SYSTEM_SETTINGS),
-  
+  whatsappSettings: getLocalStorage<WhatsAppSettings>('whatsappSettings', DEFAULT_WHATSAPP_SETTINGS),
+  odooSettings: getLocalStorage<OdooSettings>('odooSettings', DEFAULT_ODOO_SETTINGS),
+  systemSettings: getLocalStorage<SystemSettings>('systemSettings', DEFAULT_SYSTEM_SETTINGS),
+
   // Selections
   selectedCampaignId: null,
   selectedContactId: null,
-  activeChatContactId: SEED_CONTACTS[0]?.id || null,
+  activeChatContactId: null,
   activeIntervals: {},
   
   // API Live State
   isApiConnected: false,
   isApiLoading: false,
   campaignAnalytics: {},
+  pollingInterval: null,
   
   setActiveChatContactId: (id) => set({ activeChatContactId: id }),
   setSelectedCampaignId: (id) => set({ 
@@ -185,24 +227,28 @@ export const useStore = create<StoreState>((set, get) => ({
     try {
       // Fetch live data directly so the browser calls concrete Render endpoints
       // such as https://wo-integration.onrender.com/contacts/.
-      const [contacts, campaigns] = await Promise.all([
+      const [contacts, campaigns, invoices] = await Promise.all([
         api.getContacts(),
-        api.getCampaigns()
+        api.getCampaigns(),
+        api.getInvoices().catch(() => [])
       ]);
       
       set({
         contacts,
         campaigns,
+        invoices: invoices.length > 0 ? invoices : get().invoices,
         isApiConnected: true,
         isApiLoading: false
       });
       
       toast.success("Synchronized with live Render API & Supabase PostgreSQL.");
-    } catch (e) {
+    } catch (error: unknown) {
+      console.error(error);
       set({ isApiConnected: false, isApiLoading: false });
       toast.info("Render backend offline. Running in premium simulator mode.");
     }
   },
+
 
   fetchCampaignDetailsAndAnalytics: async (campaignId) => {
     const { isApiConnected } = get();
@@ -215,7 +261,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
       // Refresh campaigns list with fresh detail
       const updatedCampaigns = get().campaigns.map(c => c.id === campaignId ? details : c);
-      
+
       // Update store messages
       const otherMessages = get().messages.filter(m => m.campaign_id !== campaignId);
       const mergedMessages = [...messagesList, ...otherMessages];
@@ -228,430 +274,165 @@ export const useStore = create<StoreState>((set, get) => ({
         messages: mergedMessages,
         campaignAnalytics: updatedAnalytics
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed loading campaign details from API:", error);
+    }
+  },
+
+  startPollingCampaigns: (intervalMs = 2000) => {
+    const { pollingInterval } = get();
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+
+    const newInterval = window.setInterval(async () => {
+      const { campaigns } = get();
+      const hasRunningCampaigns = campaigns.some(c => c.status === 'running' || c.status === 'scheduled');
+
+      if (!hasRunningCampaigns) {
+        get().stopPollingCampaigns();
+        return;
+      }
+
+      try {
+        const updated = await api.getCampaigns();
+        set({ campaigns: updated });
+      } catch (error: unknown) {
+        console.error(error);
+      }
+    }, intervalMs);
+
+    set({ pollingInterval: newInterval as unknown as number });
+  },
+
+  stopPollingCampaigns: () => {
+    const { pollingInterval } = get();
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      set({ pollingInterval: null });
     }
   },
 
   // Odoo Sync Action
   syncOdooContacts: async () => {
-    const { isApiConnected } = get();
-    if (isApiConnected) {
-      set({ isApiLoading: true });
-      try {
-        const result = await api.syncOdooContacts();
-        const contacts = await api.getContacts();
-        
-        set({ contacts, isApiLoading: false });
-        
-        get().addActivity({
-          type: 'contacts_synced',
-          details: `Synced Odoo ERP CRM database. Total: ${result.total}, Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}.`
-        });
-        
-        return {
-          total_synced: result.total,
-          created: result.created,
-          updated: result.updated,
-          failed: result.skipped
-        };
-      } catch (error) {
-        set({ isApiLoading: false });
-        toast.error("Odoo CRM synchronization failed.");
-        throw error;
-      }
+    set({ isApiLoading: true });
+    try {
+      const result = await api.syncOdooContacts();
+      const contacts = await api.getContacts();
+
+      set({ contacts, isApiLoading: false });
+
+      get().addActivity({
+        type: 'contacts_synced',
+        details: `Synced Odoo ERP CRM database. Total: ${result.total}, Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}.`
+      });
+
+      return {
+        total_synced: result.total,
+        created: result.created,
+        updated: result.updated,
+        failed: result.skipped
+      };
+    } catch (error: unknown) {
+      set({ isApiLoading: false });
+      toast.error("Odoo CRM synchronization failed.");
+      throw error;
     }
-
-    // Offline Simulation fallback
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const { contacts } = get();
-        
-        // Add 3 new mock Odoo contacts
-        const newContacts: Contact[] = [
-          {
-            id: contacts.reduce((max, c) => c.id > max ? c.id : max, 0) + 1,
-            name: 'Anish Deshmukh',
-            phone: '918429482910',
-            email: 'anish@flexmind.in',
-            synced_at: new Date().toISOString(),
-            source: 'odoo'
-          },
-          {
-            id: contacts.reduce((max, c) => c.id > max ? c.id : max, 0) + 2,
-            name: 'Katarina Muller',
-            phone: '49301234567',
-            email: 'katarina.m@muller.de',
-            synced_at: new Date().toISOString(),
-            source: 'odoo'
-          },
-          {
-            id: contacts.reduce((max, c) => c.id > max ? c.id : max, 0) + 3,
-            name: 'Vijay Mallya',
-            phone: '919000000001',
-            email: 'vijay.m@odoo-customer.com',
-            synced_at: new Date().toISOString(),
-            source: 'odoo'
-          }
-        ];
-
-        const updatedContacts = contacts.map(c => {
-          if (c.id === 1) {
-            return { ...c, synced_at: new Date().toISOString() };
-          }
-          return c;
-        });
-
-        const mergedContacts = [...updatedContacts, ...newContacts];
-        set({ contacts: mergedContacts, odooSettings: { ...get().odooSettings, last_sync: new Date().toISOString() } });
-        setLocalStorage('contacts', mergedContacts);
-        setLocalStorage('odooSettings', get().odooSettings);
-        
-        get().addActivity({
-          type: 'contacts_synced',
-          details: `Synced Odoo ERP contacts database. Created 3 records, updated 1.`
-        });
-
-        resolve({
-          total_synced: mergedContacts.filter(c => c.source === 'odoo').length,
-          created: 3,
-          updated: 1,
-          failed: 0
-        });
-      }, 2000);
-    });
   },
 
   // Campaign Lifecycle Actions
   addCampaign: async (campaignData) => {
-    const { isApiConnected } = get();
-    if (isApiConnected) {
-      try {
-        const newCamp = await api.createCampaign(campaignData);
-        const refreshed = await api.getCampaigns();
-        set({ campaigns: refreshed });
-        
-        get().addActivity({
-          type: 'campaign_started',
-          campaign_name: newCamp.name,
-          details: `Campaign "${newCamp.name}" saved in draft/scheduled mode.`
-        });
-        
-        return newCamp.id;
-      } catch (error) {
-        toast.error("Failed to create campaign on backend.");
-        throw error;
-      }
+    try {
+      const newCamp = await api.createCampaign(campaignData);
+      const refreshed = await api.getCampaigns();
+      set({ campaigns: refreshed });
+
+      get().addActivity({
+        type: 'campaign_started',
+        campaign_name: newCamp.name,
+        details: `Campaign "${newCamp.name}" saved in draft/scheduled mode.`
+      });
+
+      return newCamp.id;
+    } catch (error: unknown) {
+      console.error(error);
+      toast.error("Failed to create campaign on backend.");
+      throw error;
     }
-
-    // Offline Simulation fallback
-    const { campaigns } = get();
-    const newId = campaigns.reduce((max, c) => c.id > max ? c.id : max, 0) + 1;
-    const now = new Date().toISOString();
-    
-    const newCampaign: Campaign = {
-      ...campaignData,
-      id: newId,
-      status: campaignData.scheduled_at ? 'scheduled' : 'draft',
-      created_at: now,
-      updated_at: now
-    };
-
-    const updated = [newCampaign, ...campaigns];
-    set({ campaigns: updated });
-    setLocalStorage('campaigns', updated);
-
-    get().addActivity({
-      type: 'campaign_started',
-      campaign_name: newCampaign.name,
-      details: `Created campaign in ${newCampaign.status} state.`
-    });
-
-    return newId;
   },
 
   startCampaign: async (campaignId) => {
-    const { isApiConnected } = get();
-    if (isApiConnected) {
-      try {
-        const updatedCamp = await api.startCampaign(campaignId);
-        const refreshed = await api.getCampaigns();
-        set({ campaigns: refreshed });
-        
-        // Dynamic logs sync
-        await get().fetchCampaignDetailsAndAnalytics(campaignId);
-        
-        get().addActivity({
-          type: 'campaign_started',
-          campaign_name: updatedCamp.name,
-          details: 'WhatsApp campaign started. Processing background dispatches...'
-        });
-        return;
-      } catch (error) {
-        toast.error("Failed to start campaign.");
-        console.error(error);
-        return;
-      }
-    }
+    try {
+      const updatedCamp = await api.startCampaign(campaignId);
+      const refreshed = await api.getCampaigns();
+      set({ campaigns: refreshed });
 
-    // Offline Simulation background loop
-    const { campaigns, messages, contacts } = get();
-    const campaign = campaigns.find(c => c.id === campaignId);
-    if (!campaign) return;
+      // Dynamic logs sync
+      await get().fetchCampaignDetailsAndAnalytics(campaignId);
 
-    const updatedCampaigns = campaigns.map(c => {
-      if (c.id === campaignId) {
-        return { ...c, status: 'running' as const, updated_at: new Date().toISOString() };
-      }
-      return c;
-    });
-
-    const hasMessages = messages.some(m => m.campaign_id === campaignId);
-    let updatedMessages = [...messages];
-    
-    if (!hasMessages) {
-      const campaignMessages: CampaignMessage[] = contacts.map((contact, idx) => ({
-        id: messages.reduce((max, m) => m.id > max ? m.id : max, 0) + idx + 1,
-        campaign_id: campaignId,
-        contact_id: contact.id,
-        whatsapp_message_id: null,
-        delivery_status: 'pending',
-        sent_at: null,
-        error_message: null,
-        retry_count: 0,
-        created_at: new Date().toISOString()
-      }));
-      updatedMessages = [...campaignMessages, ...messages];
-    } else {
-      updatedMessages = messages.map(m => {
-        if (m.campaign_id === campaignId && m.delivery_status !== 'read' && m.delivery_status !== 'delivered' && m.delivery_status !== 'failed') {
-          return { ...m, delivery_status: 'pending' as const };
-        }
-        return m;
+      get().addActivity({
+        type: 'campaign_started',
+        campaign_name: updatedCamp.name,
+        details: 'WhatsApp campaign started. Processing background dispatches...'
       });
+    } catch (error: unknown) {
+      toast.error("Failed to start campaign.");
+      console.error(error);
     }
-
-    set({ campaigns: updatedCampaigns, messages: updatedMessages });
-    setLocalStorage('campaigns', updatedCampaigns);
-    setLocalStorage('messages', updatedMessages);
-
-    get().addActivity({
-      type: 'campaign_started',
-      campaign_name: campaign.name,
-      details: 'WhatsApp campaign started. Processing background dispatch queues...'
-    });
-
-    const intervalId = window.setInterval(() => {
-      const state = useStore.getState();
-      const currentMessages = state.messages;
-      
-      const pendingForCampaign = currentMessages.filter(
-        m => m.campaign_id === campaignId && m.delivery_status === 'pending'
-      );
-
-      if (pendingForCampaign.length === 0) {
-        window.clearInterval(state.activeIntervals[campaignId]);
-        
-        const finalCampaigns = state.campaigns.map(c => {
-          if (c.id === campaignId) {
-            return { ...c, status: 'completed' as const, updated_at: new Date().toISOString() };
-          }
-          return c;
-        });
-        
-        const nextIntervals = { ...state.activeIntervals };
-        delete nextIntervals[campaignId];
-
-        set({ campaigns: finalCampaigns, activeIntervals: nextIntervals });
-        setLocalStorage('campaigns', finalCampaigns);
-
-        state.addActivity({
-          type: 'campaign_completed',
-          campaign_name: campaign.name,
-          details: 'Campaign background dispatch completed successfully.'
-        });
-        return;
-      }
-
-      const batchToProcess = pendingForCampaign.slice(0, 3);
-      const batchIds = batchToProcess.map(b => b.id);
-
-      const newProcessedMessages = currentMessages.map(m => {
-        if (batchIds.includes(m.id)) {
-          const failed = Math.random() < 0.15;
-          const statusChoices: DeliveryStatus[] = ['sent', 'delivered', 'read'];
-          const delivery_status = failed ? ('failed' as const) : statusChoices[Math.floor(Math.random() * statusChoices.length)];
-          const error_message = failed ? 'Undelivered: Meta Cloud API timeout or invalid number' : null;
-          
-          return {
-            ...m,
-            delivery_status,
-            whatsapp_message_id: `wamid.HBgLOTE4NDQ2OTk4NTc5FQIAERgSRDFDMkJGN0I3OUQ0QkQyQUY3CC==_${m.id}`,
-            sent_at: new Date().toISOString(),
-            error_message,
-            retry_count: failed ? 3 : 0
-          };
-        }
-        return m;
-      });
-
-      set({ messages: newProcessedMessages });
-      setLocalStorage('messages', newProcessedMessages);
-
-      const failedMsg = batchToProcess.find((_, _i) => Math.random() < 0.15);
-      if (failedMsg) {
-        const contact = state.contacts.find(c => c.id === failedMsg.contact_id);
-        if (contact) {
-          state.addActivity({
-            type: 'failed_delivery',
-            campaign_name: campaign.name,
-            contact_name: contact.name,
-            details: `Failed delivery to ${contact.phone}. (Invalid Destination Profile)`
-          });
-        }
-      }
-
-    }, 1500);
-
-    const nextIntervals = { ...get().activeIntervals, [campaignId]: intervalId };
-    set({ activeIntervals: nextIntervals });
   },
 
   pauseCampaign: async (campaignId) => {
-    const { isApiConnected } = get();
-    if (isApiConnected) {
-      // Pause acts as a cancel call in live Meta flow
-      await get().cancelCampaign(campaignId);
-      return;
-    }
-
-    // Offline Simulation fallback
-    const { campaigns, activeIntervals } = get();
-    const interval = activeIntervals[campaignId];
-    if (interval) {
-      window.clearInterval(interval);
-      const nextIntervals = { ...activeIntervals };
-      delete nextIntervals[campaignId];
-      set({ activeIntervals: nextIntervals });
-    }
-
-    const updated = campaigns.map(c => {
-      if (c.id === campaignId) {
-        return { ...c, status: 'draft' as const, updated_at: new Date().toISOString() };
-      }
-      return c;
-    });
-
-    set({ campaigns: updated });
-    setLocalStorage('campaigns', updated);
+    await get().cancelCampaign(campaignId);
   },
 
   cancelCampaign: async (campaignId) => {
-    const { isApiConnected } = get();
-    if (isApiConnected) {
-      try {
-        const updatedCamp = await api.cancelCampaign(campaignId);
-        const refreshed = await api.getCampaigns();
-        set({ campaigns: refreshed });
-        
-        await get().fetchCampaignDetailsAndAnalytics(campaignId);
-        toast.success(`Campaign "${updatedCamp.name}" cancelled.`);
-        return;
-      } catch (error) {
-        toast.error("Failed to cancel campaign on backend.");
-        return;
-      }
+    try {
+      const updatedCamp = await api.cancelCampaign(campaignId);
+      const refreshed = await api.getCampaigns();
+      set({ campaigns: refreshed });
+
+      await get().fetchCampaignDetailsAndAnalytics(campaignId);
+      toast.success(`Campaign "${updatedCamp.name}" cancelled.`);
+    } catch (error: unknown) {
+      console.error(error);
+      toast.error("Failed to cancel campaign on backend.");
     }
-
-    // Offline Simulation fallback
-    const { campaigns, activeIntervals } = get();
-    const interval = activeIntervals[campaignId];
-    if (interval) {
-      window.clearInterval(interval);
-      const nextIntervals = { ...activeIntervals };
-      delete nextIntervals[campaignId];
-      set({ activeIntervals: nextIntervals });
-    }
-
-    const updated = campaigns.map(c => {
-      if (c.id === campaignId) {
-        return { ...c, status: 'failed' as const, updated_at: new Date().toISOString() };
-      }
-      return c;
-    });
-
-    set({ campaigns: updated });
-    setLocalStorage('campaigns', updated);
   },
 
   duplicateCampaign: async (campaignId) => {
-    const { isApiConnected, campaigns } = get();
-    if (isApiConnected) {
-      const original = campaigns.find(c => c.id === campaignId);
-      if (!original) return;
-      try {
-        const newCamp = await api.createCampaign({
-          name: `${original.name} (Copy)`,
-          topic: original.topic || 'WhatsApp Outreach',
-          template_name: original.template_name,
-          template_language: original.template_language || 'en',
-          template_components: original.template_components || [],
-          scheduled_at: null
-        });
-        
-        const refreshed = await api.getCampaigns();
-        set({ campaigns: refreshed });
-        toast.success(`Duplicated to draft "${newCamp.name}".`);
-      } catch (error) {
-        toast.error("Failed to duplicate campaign on backend.");
-      }
-      return;
-    }
-
-    // Offline Simulation fallback
+    const { campaigns } = get();
     const original = campaigns.find(c => c.id === campaignId);
     if (!original) return;
+    try {
+      const newCamp = await api.createCampaign({
+        name: `${original.name} (Copy)`,
+        topic: original.topic || 'WhatsApp Outreach',
+        template_name: original.template_name,
+        template_language: original.template_language || 'en',
+        template_components: original.template_components || [],
+        scheduled_at: null
+      });
 
-    const newId = campaigns.reduce((max, c) => c.id > max ? c.id : max, 0) + 1;
-    const now = new Date().toISOString();
-
-    const duplicated: Campaign = {
-      ...original,
-      id: newId,
-      name: `${original.name} (Copy)`,
-      status: 'draft',
-      scheduled_at: null,
-      created_at: now,
-      updated_at: now
-    };
-
-    const updated = [duplicated, ...campaigns];
-    set({ campaigns: updated });
-    setLocalStorage('campaigns', updated);
+      const refreshed = await api.getCampaigns();
+      set({ campaigns: refreshed });
+      toast.success(`Duplicated to draft "${newCamp.name}".`);
+    } catch (error: unknown) {
+      console.error(error);
+      toast.error("Failed to duplicate campaign on backend.");
+    }
   },
 
   deleteCampaign: async (campaignId) => {
-    const { isApiConnected, campaigns } = get();
-    if (isApiConnected) {
-      try {
-        await api.cancelCampaign(campaignId).catch(() => {});
-        const updated = campaigns.filter(c => c.id !== campaignId);
-        set({ campaigns: updated });
-        toast.success("Campaign removed from directory.");
-      } catch (e) {
-        toast.error("Failed to remove campaign.");
-      }
-      return;
+    const { campaigns } = get();
+    try {
+      await api.cancelCampaign(campaignId).catch(() => {});
+      const updated = campaigns.filter(c => c.id !== campaignId);
+      set({ campaigns: updated });
+      toast.success("Campaign removed from directory.");
+    } catch (error: unknown) {
+      console.error(error);
+      toast.error("Failed to remove campaign.");
     }
-
-    // Offline Simulation fallback
-    const { messages } = get();
-    const updatedCampaigns = campaigns.filter(c => c.id !== campaignId);
-    const updatedMessages = messages.filter(m => m.campaign_id !== campaignId);
-    
-    set({ campaigns: updatedCampaigns, messages: updatedMessages });
-    setLocalStorage('campaigns', updatedCampaigns);
-    setLocalStorage('messages', updatedMessages);
   },
 
   updateCampaign: (id, fields) => {
@@ -663,43 +444,21 @@ export const useStore = create<StoreState>((set, get) => ({
 
   // Contact Actions
   addManualContact: async (contactData) => {
-    const { isApiConnected, contacts } = get();
-    if (isApiConnected) {
-      try {
-        const newContact = await api.createContact(contactData);
-        const updated = [newContact, ...contacts];
-        set({ contacts: updated });
-        toast.success(`Created contact "${contactData.name}" on Odoo & PostgreSQL database.`);
-        
-        get().addActivity({
-          type: 'contacts_synced',
-          details: `Added new live contact: ${newContact.name} (${newContact.phone}).`
-        });
-        return;
-      } catch (error: any) {
-        toast.error(error.message || "Failed to create contact on backend.");
-        throw error;
-      }
+    const { contacts } = get();
+    try {
+      const newContact = await api.createContact(contactData);
+      const updated = [newContact, ...contacts];
+      set({ contacts: updated });
+      toast.success(`Created contact "${contactData.name}" on Odoo & PostgreSQL database.`);
+
+      get().addActivity({
+        type: 'contacts_synced',
+        details: `Added new live contact: ${newContact.name} (${newContact.phone}).`
+      });
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to create contact on backend.");
+      throw error;
     }
-
-    // Offline Simulation fallback
-    const newId = contacts.reduce((max, c) => c.id > max ? c.id : max, 0) + 1;
-    
-    const newContact: Contact = {
-      ...contactData,
-      id: newId,
-      synced_at: new Date().toISOString(),
-      source: 'manual'
-    };
-
-    const updated = [newContact, ...contacts];
-    set({ contacts: updated });
-    setLocalStorage('contacts', updated);
-
-    get().addActivity({
-      type: 'contacts_synced',
-      details: `Added new manual contact: ${newContact.name} (${newContact.phone}).`
-    });
   },
 
   deleteContact: (id) => {
@@ -769,8 +528,8 @@ export const useStore = create<StoreState>((set, get) => ({
         const res = await api.sendDirectMessage(contactId, payload);
         waMessageId = res.whatsapp_message_id;
         deliveryStatus = 'sent';
-      } catch (error: any) {
-        toast.error(`WhatsApp Send Failed: ${error.message || error}`);
+      } catch (error: unknown) {
+        toast.error(`WhatsApp Send Failed: ${error instanceof Error ? error.message : String(error)}`);
         throw error;
       }
     }
@@ -903,21 +662,69 @@ export const useStore = create<StoreState>((set, get) => ({
     localStorage.removeItem('whatsappSettings');
     localStorage.removeItem('odooSettings');
     localStorage.removeItem('systemSettings');
-    
+
     set({
-      contacts: SEED_CONTACTS,
-      campaigns: INITIAL_CAMPAIGNS,
-      messages: SEED_MESSAGES,
-      templates: INITIAL_TEMPLATES,
-      activities: INITIAL_ACTIVITIES,
-      whatsappSettings: INITIAL_WHATSAPP_SETTINGS,
-      odooSettings: INITIAL_ODOO_SETTINGS,
-      systemSettings: INITIAL_SYSTEM_SETTINGS,
+      contacts: [],
+      campaigns: [],
+      messages: [],
+      templates: [],
+      activities: [],
+      whatsappSettings: DEFAULT_WHATSAPP_SETTINGS,
+      odooSettings: DEFAULT_ODOO_SETTINGS,
+      systemSettings: DEFAULT_SYSTEM_SETTINGS,
       selectedCampaignId: null,
       selectedContactId: null,
-      activeChatContactId: SEED_CONTACTS[0]?.id || null
+      activeChatContactId: null,
+      invoices: []
     });
+  },
+
+  fetchInvoices: async () => {
+    const { isApiConnected } = get();
+    if (isApiConnected) {
+      try {
+        const invoices = await api.getInvoices();
+        set({ invoices });
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to load invoices from Odoo.");
+      }
+    }
+  },
+
+  createInvoice: async (invoiceData) => {
+    try {
+      const newInvoiceId = await api.createInvoice(invoiceData);
+      await get().fetchInvoices();
+      toast.success(`Draft invoice created successfully (ID ${newInvoiceId})`);
+      return newInvoiceId;
+    } catch (error) {
+      toast.error("Failed to create Odoo invoice.");
+      throw error;
+    }
+  },
+
+  postInvoice: async (id) => {
+    try {
+      await api.postInvoice(id);
+      await get().fetchInvoices();
+      toast.success("Invoice posted & validated successfully in Odoo.");
+    } catch (error) {
+      toast.error("Failed to post invoice.");
+      throw error;
+    }
+  },
+
+  sendInvoiceWhatsApp: async (id, payload) => {
+    try {
+      await api.sendInvoiceWhatsApp(id, payload);
+      toast.success("WhatsApp template invoice notification queued.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to send WhatsApp invoice notification.");
+    }
   }
+
 }));
 
 // Initialize document theme on import

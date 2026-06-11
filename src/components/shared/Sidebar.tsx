@@ -1,16 +1,18 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Send, 
-  Users, 
-  MessageSquare, 
-  BarChart3, 
-  Calendar, 
-  Sparkles, 
-  Layers, 
+import {
+  LayoutDashboard,
+  Send,
+  Users,
+  MessageSquare,
+  MessageCircle,
+  BarChart3,
+  Calendar,
+  Sparkles,
+  Layers,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Receipt
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../ui/utils";
@@ -40,11 +42,13 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'campaigns', label: 'Campaigns', icon: Send },
     { id: 'contacts', label: 'Contacts', icon: Users },
+    { id: 'invoices', label: 'Invoices', icon: Receipt },
     { id: 'templates', label: 'Templates', icon: MessageSquare },
-    // { id: 'message-center', label: 'Inbox / Chat', icon: Inbox, badge: 'Simulated' },
+    { id: 'message-center', label: 'Live Inbox', icon: MessageCircle, badge: 'Live' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'scheduler', label: 'Scheduler', icon: Calendar },
     // { id: 'settings', label: 'Settings', icon: Settings },
+
   ];
 
   return (
@@ -188,7 +192,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
                 {item.badge && (
                   <span className={cn(
-                    "px-1.5 py-0.5 text-[9px] rounded-md font-mono bg-slate-100 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-slate-500 font-bold leading-none shrink-0 whitespace-nowrap",
+                    "px-1.5 py-0.5 text-[9px] rounded-md font-mono font-bold leading-none shrink-0 whitespace-nowrap",
+                    item.badge === 'Live'
+                      ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 animate-pulse"
+                      : "bg-slate-100 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-slate-500",
                     sidebarCollapsed ? "lg:hidden" : ""
                   )}>
                     {item.badge}

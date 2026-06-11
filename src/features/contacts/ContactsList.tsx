@@ -132,9 +132,9 @@ export function ContactsList() {
       // Format variables for Meta API payload
       const components = [
         {
-          type: "body",
+          type: "body" as const,
           parameters: paramValues.map(val => ({
-            type: "text",
+            type: "text" as const,
             text: val
           }))
         }
@@ -255,7 +255,7 @@ export function ContactsList() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto grid-bg-lines">
+    <div className="p-6 space-y-6 grid-bg-dots">
       {/* Header and Sync widget */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -117,7 +117,7 @@ export function TemplatesGallery() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto grid-bg-dots">
+    <div className="p-6 space-y-6 grid-bg-dots">
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

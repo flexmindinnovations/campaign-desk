@@ -54,7 +54,7 @@ export function AIUpgradePanel() {
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className="p-6 max-w-5xl mx-auto space-y-8 font-sans grid-bg-lines text-xs font-semibold"
+      className="p-6 space-y-8 font-sans grid-bg-dots text-xs font-semibold"
     >
       
       {/* Visual Locked Neon Banner Card */}

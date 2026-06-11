@@ -13,6 +13,7 @@ import { Badge } from "../../components/ui/Badge";
 import { formatDate } from "../../components/ui/utils";
 import { toast } from "../../components/ui/Toast";
 import { cn } from "../../components/ui/utils";
+import { DAYS_OF_WEEK } from "../../appConstant";
 
 export function SchedulerCalendar() {
   const campaigns = useStore(state => state.campaigns);
@@ -27,9 +28,7 @@ export function SchedulerCalendar() {
 
   // We seed the calendar around June 2026
   // June 2026 starts on a Monday. Let's make an elegant grid
-  // Days of the week header
-  const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
+  // June 2026 Mon June 1 to Sun June 30
   // Helper to place campaigns into days of June 2026
   // June 2026 Mon June 1 to Sun June 30
   const getDaysInMonth = () => {
@@ -80,7 +79,7 @@ export function SchedulerCalendar() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto grid-bg-lines font-sans">
+    <div className="p-6 space-y-6 grid-bg-dots font-sans">
       
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -95,14 +94,14 @@ export function SchedulerCalendar() {
 
         {/* View togglers */}
         <div className="flex p-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 w-fit shrink-0 select-none text-xs font-semibold">
-          {[
+          {([
             { id: "month", label: "Month" },
             { id: "week", label: "Week" },
             { id: "day", label: "Day" }
-          ].map((v) => (
+          ] as const).map((v) => (
             <button
               key={v.id}
-              onClick={() => setCurrentView(v.id as any)}
+              onClick={() => setCurrentView(v.id)}
               className={`px-4 py-1.5 rounded-md cursor-pointer transition-all duration-200 ${
                 currentView === v.id
                   ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-slate-50"
@@ -111,7 +110,7 @@ export function SchedulerCalendar() {
             >
               {v.label}
             </button>
-          ))}
+          )) }
         </div>
       </div>
 

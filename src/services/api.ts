@@ -1,6 +1,5 @@
-import type { Contact, Campaign, CampaignMessage, CampaignAnalytics } from '../types/database';
-
-const BASE_URL = import.meta.env.VITE_API_URL?.trim() || 'http://localhost:8000';
+import type { Contact, Campaign, CampaignMessage, CampaignAnalytics, Invoice, ConversationSummary, ConversationMessage } from '../types/database';
+import { BASE_URL } from '../appConstant';
 
 interface OdooSyncResult {
   created: number;
@@ -37,13 +36,19 @@ export const api = {
   getContacts: async (): Promise<Contact[]> => {
     const res = await fetch(`${BASE_URL}/contacts/`);
     if (!res.ok) throw new Error('Failed to fetch contacts');
-    const data = await res.json();
+    const data = (await res.json()) as Array<{
+      id: number;
+      name: string;
+      phone: string;
+      email?: string | null;
+      synced_at?: string | null;
+    }>;
     // Map Odoo data structure into frontend Contact model
-    return data.map((c: any) => ({
+    return data.map((c) => ({
       id: c.id,
       name: c.name,
       phone: c.phone,
-      email: c.email || null,
+      email: c.email || "",
       synced_at: c.synced_at || new Date().toISOString(),
       source: 'odoo' as const // Synced Odoo CRM source
     }));
@@ -73,7 +78,7 @@ export const api = {
       id: c.id,
       name: c.name,
       phone: c.phone,
-      email: c.email || null,
+      email: c.email || "",
       synced_at: c.last_synced_at || c.created_at || new Date().toISOString(),
       source: 'odoo' as const
     };
@@ -94,7 +99,7 @@ export const api = {
       id: c.id,
       name: c.name,
       phone: c.phone,
-      email: c.email || null,
+      email: c.email || "",
       synced_at: c.last_synced_at || c.created_at || new Date().toISOString(),
       source: 'odoo' as const
     };
@@ -106,8 +111,19 @@ export const api = {
   getCampaigns: async (): Promise<Campaign[]> => {
     const res = await fetch(`${BASE_URL}/campaigns/`);
     if (!res.ok) throw new Error('Failed to fetch campaigns list');
-    const data = await res.json();
-    return data.map((c: any) => ({
+    const data = (await res.json()) as Array<{
+      id: number;
+      name: string;
+      topic?: string | null;
+      template_name: string;
+      template_language?: string | null;
+      template_components?: import('../types/database').TemplateComponent[] | null;
+      status?: import('../types/database').CampaignStatus | null;
+      scheduled_at?: string | null;
+      created_at?: string | null;
+      updated_at?: string | null;
+    }>;
+    return data.map((c) => ({
       id: c.id,
       name: c.name,
       topic: c.topic || 'WhatsApp Outreach',
@@ -212,5 +228,86 @@ export const api = {
       throw new Error(err.detail || 'Failed to send direct message');
     }
     return res.json();
-  }
+  },
+
+  /**
+   * Invoices endpoints
+   */
+  getInvoices: async (): Promise<Invoice[]> => {
+    const res = await fetch(`${BASE_URL}/invoices/`);
+    if (!res.ok) throw new Error('Failed to fetch invoices');
+    return res.json();
+  },
+
+  getInvoiceDetail: async (id: number): Promise<Invoice> => {
+    const res = await fetch(`${BASE_URL}/invoices/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch invoice details for ID ${id}`);
+    return res.json();
+  },
+
+  createInvoice: async (invoiceData: { partner_id: number; invoice_date?: string; lines: Array<{ name: string; quantity: number; price_unit: number }> }): Promise<number> => {
+    const res = await fetch(`${BASE_URL}/invoices/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invoiceData)
+    });
+    if (!res.ok) throw new Error('Failed to create invoice in Odoo');
+    return res.json();
+  },
+
+  postInvoice: async (id: number): Promise<{ status: string }> => {
+    const res = await fetch(`${BASE_URL}/invoices/${id}/post`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Failed to confirm invoice ID ${id}`);
+    return res.json();
+  },
+
+  sendInvoiceWhatsApp: async (id: number, payload: { template_name: string; template_language?: string; company_name?: string; invoice_url?: string }): Promise<{ status: string; whatsapp_message_id: string }> => {
+    const res = await fetch(`${BASE_URL}/invoices/${id}/send-whatsapp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`Failed to dispatch WhatsApp notification for invoice ID ${id}`);
+    return res.json();
+  },
+
+  /**
+   * Conversations (real-time inbox)
+   */
+  getConversations: async (): Promise<ConversationSummary[]> => {
+    const res = await fetch(`${BASE_URL}/conversations/`);
+    if (!res.ok) throw new Error('Failed to fetch conversations');
+    return res.json();
+  },
+
+  getConversationMessages: async (phone: string, skip = 0, limit = 50): Promise<ConversationMessage[]> => {
+    const res = await fetch(`${BASE_URL}/conversations/${phone}?skip=${skip}&limit=${limit}`);
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`Failed to fetch messages for ${phone}`);
+    return res.json();
+  },
+
+  sendOperatorMessage: async (phone: string, content: string): Promise<ConversationMessage> => {
+    const res = await fetch(`${BASE_URL}/conversations/${phone}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) throw new Error('Failed to send message');
+    return res.json();
+  },
+
+  simulateCustomerMessage: async (phone: string, content: string): Promise<ConversationMessage> => {
+    const res = await fetch(`${BASE_URL}/conversations/${phone}/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) throw new Error('Failed to send message');
+    return res.json();
+  },
 };
+
