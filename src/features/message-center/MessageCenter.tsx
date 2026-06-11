@@ -269,7 +269,9 @@ export function MessageCenter() {
     return name.toLowerCase().includes(q) || c.contact_phone.includes(q);
   });
 
-  const activeMessages = activePhone ? (messages[activePhone] ?? []) : [];
+  const activeMessages = (activePhone ? (messages[activePhone] ?? []) : [])
+    .slice()
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
