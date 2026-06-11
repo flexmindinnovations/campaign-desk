@@ -34,8 +34,23 @@ import {
   SelectValue,
 } from "../../components/ui/Select";
 
+const SKELETON_WIDTHS = ["w-3/5", "w-4/5", "w-2/5", "w-3/4", "w-1/2"];
+
+function SkeletonRow({ cols }: { cols: number }) {
+  return (
+    <tr>
+      {Array.from({ length: cols }).map((_, i) => (
+        <td key={i} className="p-4 first:pl-6 last:pr-6">
+          <div className={cn("h-3.5 rounded-md bg-slate-100 dark:bg-slate-800 animate-pulse", SKELETON_WIDTHS[i % SKELETON_WIDTHS.length])} />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 export function ContactsList() {
   const contacts = useStore(state => state.contacts);
+  const loadingContacts = useStore(state => state.loadingState.contacts);
   const addManualContact = useStore(state => state.addManualContact);
   const messages = useStore(state => state.messages);
   const campaigns = useStore(state => state.campaigns);
@@ -348,7 +363,9 @@ export function ContactsList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-              {filteredContacts.length > 0 ? (
+              {loadingContacts ? (
+                Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={5} />)
+              ) : filteredContacts.length > 0 ? (
                 filteredContacts.map((contact) => {
                   const contactMsg = messages.filter(m => m.contact_id === contact.id && m.sent_at);
                   const lastContacted = contactMsg.length > 0

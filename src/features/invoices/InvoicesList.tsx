@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useStore } from "../../store/useStore";
 import { api } from "../../services/api";
+import { cn } from "../../components/ui/utils";
 import {
   Search,
   Plus,
@@ -22,10 +23,25 @@ import { InvoiceDetailModal } from "./InvoiceDetailModal";
 import type { Invoice } from "../../types/database";
 
 
+const INV_SKELETON_WIDTHS = ["w-2/5", "w-3/5", "w-1/3", "w-2/5", "w-1/4", "w-1/4", "w-1/3"];
+
+function InvoiceSkeletonRow() {
+  return (
+    <tr>
+      {INV_SKELETON_WIDTHS.map((w, i) => (
+        <td key={i} className="p-4 first:pl-6 last:pr-6">
+          <div className={cn("h-3.5 rounded-md bg-slate-100 dark:bg-slate-800 animate-pulse", w)} />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 export function InvoicesList() {
   const invoices = useStore(state => state.invoices);
   const fetchInvoices = useStore(state => state.fetchInvoices);
   const isApiConnected = useStore(state => state.isApiConnected);
+  const loadingInvoices = useStore(state => state.loadingState.invoices);
   
   const [searchQuery, setSearchQuery] = React.useState("");
   const [stateFilter, setStateFilter] = React.useState<"all" | "draft" | "posted">("all");
@@ -56,7 +72,7 @@ export function InvoicesList() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetchInvoices();
+      await fetchInvoices(true); // force bypass cache
       toast.success("Successfully synchronized invoices with Odoo ERP.");
     } catch (error: unknown) {
       console.error(error);
@@ -242,7 +258,9 @@ export function InvoicesList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-              {filteredInvoices.length > 0 ? (
+              {loadingInvoices ? (
+                Array.from({ length: 5 }).map((_, i) => <InvoiceSkeletonRow key={i} />)
+              ) : filteredInvoices.length > 0 ? (
                 filteredInvoices.map((invoice) => {
                   const partnerName = getPartnerName(invoice);
                   return (

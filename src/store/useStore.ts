@@ -37,6 +37,11 @@ interface StoreState {
   campaignAnalytics: Record<number, CampaignAnalytics>;
   pollingInterval: number | null;
 
+  // Per-resource loading flags (shown in table skeletons)
+  loadingState: { contacts: boolean; campaigns: boolean; invoices: boolean };
+  // Timestamps (ms) of last successful fetch — used to skip redundant re-fetches
+  lastFetched: { contacts: number | null; campaigns: number | null; invoices: number | null };
+
   // Theme Actions
   toggleTheme: () => void;
   setTheme: (theme: 'light' | 'dark') => void;
@@ -78,7 +83,7 @@ interface StoreState {
   updateSystemSettings: (settings: Partial<SystemSettings>) => void;
   
   // Invoice Actions
-  fetchInvoices: () => Promise<void>;
+  fetchInvoices: (force?: boolean) => Promise<void>;
   createInvoice: (invoiceData: { partner_id: number; invoice_date?: string; lines: Array<{ name: string; quantity: number; price_unit: number }> }) => Promise<number>;
   postInvoice: (id: number) => Promise<void>;
   sendInvoiceWhatsApp: (id: number, payload: { template_name: string; template_language?: string; company_name?: string; invoice_url?: string }) => Promise<void>;
@@ -184,6 +189,8 @@ export const useStore = create<StoreState>((set, get) => ({
   isApiLoading: false,
   campaignAnalytics: {},
   pollingInterval: null,
+  loadingState: { contacts: false, campaigns: false, invoices: false },
+  lastFetched: { contacts: null, campaigns: null, invoices: null },
   
   setActiveChatContactId: (id) => set({ activeChatContactId: id }),
   setSelectedCampaignId: (id) => set({ 
@@ -223,28 +230,56 @@ export const useStore = create<StoreState>((set, get) => ({
 
   // API Actions
   initStore: async () => {
-    set({ isApiLoading: true });
+    const STALE_MS = 2 * 60 * 1000; // 2 minutes
+    const { lastFetched } = get();
+    const now = Date.now();
+    const contactsFresh = lastFetched.contacts !== null && now - lastFetched.contacts < STALE_MS;
+    const campaignsFresh = lastFetched.campaigns !== null && now - lastFetched.campaigns < STALE_MS;
+
+    // Skip entirely if both are still fresh (e.g. navigating between tabs)
+    if (contactsFresh && campaignsFresh) {
+      set({ isApiConnected: true });
+      return;
+    }
+
+    set({
+      isApiLoading: true,
+      loadingState: {
+        ...get().loadingState,
+        contacts: !contactsFresh,
+        campaigns: !campaignsFresh,
+      },
+    });
+
     try {
-      // Fetch live data directly so the browser calls concrete Render endpoints
-      // such as https://wo-integration.onrender.com/contacts/.
-      const [contacts, campaigns, invoices] = await Promise.all([
-        api.getContacts(),
-        api.getCampaigns(),
-        api.getInvoices().catch(() => [])
+      const [contacts, campaigns] = await Promise.all([
+        contactsFresh ? Promise.resolve(get().contacts) : api.getContacts(),
+        campaignsFresh ? Promise.resolve(get().campaigns) : api.getCampaigns(),
       ]);
-      
+
       set({
         contacts,
         campaigns,
-        invoices: invoices.length > 0 ? invoices : get().invoices,
         isApiConnected: true,
-        isApiLoading: false
+        isApiLoading: false,
+        loadingState: { ...get().loadingState, contacts: false, campaigns: false },
+        lastFetched: {
+          ...get().lastFetched,
+          contacts: contactsFresh ? lastFetched.contacts : now,
+          campaigns: campaignsFresh ? lastFetched.campaigns : now,
+        },
       });
-      
-      toast.success("Synchronized with live Render API & Supabase PostgreSQL.");
+
+      if (!contactsFresh || !campaignsFresh) {
+        toast.success("Synchronized with live Render API & Supabase PostgreSQL.");
+      }
     } catch (error: unknown) {
       console.error(error);
-      set({ isApiConnected: false, isApiLoading: false });
+      set({
+        isApiConnected: false,
+        isApiLoading: false,
+        loadingState: { ...get().loadingState, contacts: false, campaigns: false },
+      });
       toast.info("Render backend offline. Running in premium simulator mode.");
     }
   },
@@ -679,16 +714,26 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
-  fetchInvoices: async () => {
-    const { isApiConnected } = get();
-    if (isApiConnected) {
-      try {
-        const invoices = await api.getInvoices();
-        set({ invoices });
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to load invoices from Odoo.");
-      }
+  fetchInvoices: async (force = false) => {
+    const STALE_MS = 2 * 60 * 1000;
+    const { isApiConnected, lastFetched } = get();
+    if (!isApiConnected) return;
+
+    const fresh = lastFetched.invoices !== null && Date.now() - lastFetched.invoices < STALE_MS;
+    if (!force && fresh) return;
+
+    set({ loadingState: { ...get().loadingState, invoices: true } });
+    try {
+      const invoices = await api.getInvoices();
+      set({
+        invoices,
+        loadingState: { ...get().loadingState, invoices: false },
+        lastFetched: { ...get().lastFetched, invoices: Date.now() },
+      });
+    } catch (error) {
+      console.error(error);
+      set({ loadingState: { ...get().loadingState, invoices: false } });
+      toast.error("Failed to load invoices from Odoo.");
     }
   },
 
