@@ -1,18 +1,20 @@
 import * as React from "react";
 import { useStore } from "../../store/useStore";
-import { 
-  Search, 
-  Download, 
-  UserPlus, 
-  Mail, 
-  Phone, 
-  Database, 
-  User, 
+import { api } from "../../services/api";
+import {
+  Search,
+  Download,
+  UserPlus,
+  Mail,
+  Phone,
+  Database,
+  User,
   History,
   FileText,
   X,
   Plus,
-  Send
+  Send,
+  Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "../../components/ui/Card";
@@ -20,6 +22,10 @@ import { Badge, getDeliveryStatusBadge } from "../../components/ui/Badge";
 import { formatDate } from "../../components/ui/utils";
 import { toast } from "../../components/ui/Toast";
 import { cn } from "../../components/ui/utils";
+import { Input } from "../../components/ui/Input";
+import { Label } from "../../components/ui/Label";
+import { Button } from "../../components/ui/Button";
+import { Textarea } from "../../components/ui/Textarea";
 import {
   Select,
   SelectContent,
@@ -200,6 +206,19 @@ export function ContactsList() {
   };
 
   // Add contact handler (Odoo ERP & local PostgreSQL)
+  const handleDeleteContact = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this contact? This cannot be undone.")) return;
+    try {
+      await api.deleteContact(id);
+      // Remove from local store
+      useStore.setState((s) => ({ contacts: s.contacts.filter((c) => c.id !== id) }));
+      setDrawerContactId(null);
+      toast.success("Contact deleted successfully.");
+    } catch {
+      toast.error("Failed to delete contact.");
+    }
+  };
+
   const handleAddContact = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newPhone) {
@@ -268,23 +287,12 @@ export function ContactsList() {
         </div>
 
         <div className="flex gap-2">
-          {/* Export CSV */}
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-xs transition-colors cursor-pointer dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800/80"
-          >
-            <Download size={14} />
-            Export CSV
-          </button>
-          
-          {/* Add Manual Contact */}
-          <button
-            onClick={() => setIsAddFormOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-          >
-            <UserPlus size={14} />
-            Add Contact
-          </button>
+          <Button type="button" variant="outline" onClick={handleExportCSV} className="gap-2">
+            <Download size={14} /> Export CSV
+          </Button>
+          <Button type="button" onClick={() => setIsAddFormOpen(true)} className="gap-2">
+            <UserPlus size={14} /> Add Contact
+          </Button>
         </div>
       </div>
 
@@ -292,15 +300,13 @@ export function ContactsList() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            {/* Search inputs */}
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-              <input
-                type="text"
+            {/* Search input */}
+            <div className="w-full md:max-w-md">
+              <Input
                 placeholder="Search contacts by name, email, or phone number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:outline-hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                leftIcon={<Search size={14} />}
               />
             </div>
 
@@ -417,6 +423,7 @@ export function ContactsList() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => setDrawerContactId(null)}
                   className="p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
@@ -454,8 +461,8 @@ export function ContactsList() {
                 <form onSubmit={handleSendMessage} className="flex-1 flex flex-col overflow-hidden">
                   <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {/* Message Type Toggle segment switches */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Outbound Mode</label>
+                    <div className="space-y-1.5">
+                      <Label>Outbound Mode</Label>
                       <div className="flex p-1 rounded-lg bg-slate-100 dark:bg-slate-800 w-full">
                         <button
                           type="button"
@@ -487,14 +494,13 @@ export function ContactsList() {
                     {messageType === "custom" ? (
                       /* CUSTOM TEXT MODE */
                       <div className="space-y-3">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Message Content</label>
-                          <textarea
+                        <div className="space-y-1.5">
+                          <Label>Message Content</Label>
+                          <Textarea
                             placeholder="Type a custom WhatsApp message body here..."
                             rows={5}
                             value={customText}
                             onChange={(e) => setCustomText(e.target.value)}
-                            className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:outline-hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                           />
                         </div>
                         <p className="text-[10px] text-slate-400 leading-normal font-medium">
@@ -505,8 +511,8 @@ export function ContactsList() {
                       /* WHATSAPP TEMPLATE MODE */
                       <div className="space-y-4">
                         {/* Select Campaign */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Associate with Campaign (Optional)</label>
+                        <div className="space-y-1.5">
+                          <Label>Associate with Campaign (Optional)</Label>
                           <Select
                             value={selectedCampaignId ? String(selectedCampaignId) : "direct"}
                             onValueChange={(val) => {
@@ -533,8 +539,8 @@ export function ContactsList() {
                         </div>
 
                         {/* Select Template */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select WhatsApp Template</label>
+                        <div className="space-y-1.5">
+                          <Label>Select WhatsApp Template</Label>
                           <Select
                             value={selectedTemplateName}
                             onValueChange={(val) => setSelectedTemplateName(val)}
@@ -553,13 +559,12 @@ export function ContactsList() {
                         {/* Dynamic Parameters Inputs */}
                         {selectedTemplate && selectedTemplate.params_count > 0 && (
                           <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Template Variables Configuration</label>
+                            <Label>Template Variables Configuration</Label>
                             <div className="space-y-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950/20">
                               {Array.from({ length: selectedTemplate.params_count }).map((_, idx) => (
-                                <div key={idx} className="space-y-1">
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase">Variable {idx + 1} ({"{{"}{idx + 1}{"}}"})</span>
-                                  <input
-                                    type="text"
+                                <div key={idx} className="space-y-1.5">
+                                  <Label className="text-[10px] uppercase">Variable {idx + 1} ({"{{"}{idx + 1}{"}}"})</Label>
+                                  <Input
                                     required
                                     value={paramValues[idx] || ""}
                                     onChange={(e) => {
@@ -567,7 +572,6 @@ export function ContactsList() {
                                       newVals[idx] = e.target.value;
                                       setParamValues(newVals);
                                     }}
-                                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                                     placeholder={`Enter value for variable {{${idx + 1}}}`}
                                   />
                                 </div>
@@ -580,10 +584,10 @@ export function ContactsList() {
 
                     {/* WhatsApp Live Preview Bubble */}
                     <div className="space-y-1.5 pt-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex justify-between">
-                        <span>Live WhatsApp Preview</span>
-                        <span className="text-[9px] text-slate-400 font-mono tracking-normal capitalize">{messageType} message</span>
-                      </label>
+                      <div className="flex justify-between items-center">
+                        <Label>Live WhatsApp Preview</Label>
+                        <span className="text-[9px] text-slate-400 font-mono capitalize">{messageType} message</span>
+                      </div>
                       
                       <div 
                         className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-end space-y-1 relative overflow-hidden min-h-[110px] bg-[#efeae2] dark:bg-[#0b141a]"
@@ -607,13 +611,9 @@ export function ContactsList() {
                   
                   {/* Sticky Footer */}
                   <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-                    <button
-                      type="submit"
-                      className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-md transition-colors cursor-pointer"
-                    >
-                      <Send size={14} />
-                      Send to WhatsApp
-                    </button>
+                    <Button type="submit" className="w-full gap-2">
+                      <Send size={14} /> Send to WhatsApp
+                    </Button>
                   </div>
                 </form>
               ) : (
@@ -657,6 +657,15 @@ export function ContactsList() {
                           <span className="font-mono text-slate-500">#{selectedContact.id}</span>
                         </div>
                       </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2 text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/20"
+                        onClick={() => handleDeleteContact(selectedContact.id)}
+                      >
+                        <Trash2 size={13} /> Delete Contact
+                      </Button>
                     </div>
                   )}
 
@@ -768,49 +777,25 @@ export function ContactsList() {
                 </button>
               </div>
 
-              <form onSubmit={handleAddContact} className="space-y-4 text-xs font-semibold">
-                <div className="space-y-1">
-                  <label className="text-slate-400">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Johnathan Doe"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                  />
+              <form onSubmit={handleAddContact} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-name">Full Name</Label>
+                  <Input id="contact-name" required placeholder="e.g. Johnathan Doe" value={newName} onChange={(e) => setNewName(e.target.value)} />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-400">WhatsApp Phone Number</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 918446998579 (include country code, omit +)"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-phone">WhatsApp Phone Number</Label>
+                  <Input id="contact-phone" required placeholder="e.g. 918446998579 (include country code, omit +)" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-400">Email Address (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="e.g. john.doe@corp.com"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-email">Email Address (Optional)</Label>
+                  <Input id="contact-email" type="email" placeholder="e.g. john.doe@corp.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-md transition-colors cursor-pointer mt-6"
-                >
-                  <Plus size={14} />
-                  Add Contact to CRM
-                </button>
+                <Button type="submit" className="w-full gap-2 mt-2">
+                  <Plus size={14} /> Add Contact to CRM
+                </Button>
               </form>
             </motion.div>
           </div>

@@ -3,6 +3,7 @@ import { Search, Send, Smartphone, Wifi, WifiOff, Loader2, Plus, X, Sparkles, Fi
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../components/ui/utils";
+import { Textarea } from "../../components/ui/Textarea";
 import { useChatStore } from "../../store/chatStore";
 import { useStore } from "../../store/useStore";
 import type { ConversationMessage } from "../../types/database";
@@ -439,7 +440,7 @@ export function MessageCenter() {
                   onSubmit={handleSend}
                   className="px-3 py-3 flex items-end gap-2 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0"
                 >
-                  <textarea
+                  <Textarea
                     ref={textareaRef}
                     rows={1}
                     placeholder={wsStatus !== "connected" ? "Connecting…" : "Type a message"}
@@ -447,7 +448,7 @@ export function MessageCenter() {
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={handleKeyDown}
                     disabled={wsStatus !== "connected" || sending}
-                    className="flex-1 resize-none px-4 py-2.5 text-sm rounded-3xl border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:outline-none focus:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed max-h-32 overflow-y-auto"
+                    className="flex-1 min-h-0 px-4 py-2.5 text-sm rounded-3xl leading-relaxed max-h-32 overflow-y-auto focus:ring-0 focus:border-slate-300 bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
                   />
                   <button
                     type="submit"

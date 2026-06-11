@@ -1,12 +1,12 @@
 import * as React from "react";
 import { useStore } from "../../store/useStore";
-import { 
-  X, 
-  ArrowRight, 
-  ArrowLeft, 
-  Check, 
-  Users, 
-  Clock, 
+import {
+  X,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Users,
+  Clock,
   Sparkles,
   Info
 } from "lucide-react";
@@ -14,6 +14,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "../../components/ui/Badge";
 import { toast } from "../../components/ui/Toast";
 import { cn } from "../../components/ui/utils";
+import { Input } from "../../components/ui/Input";
+import { Label } from "../../components/ui/Label";
+import { Button } from "../../components/ui/Button";
+import { Textarea } from "../../components/ui/Textarea";
+import { DatePicker } from "../../components/ui/DatePicker";
 
 interface CampaignBuilderProps {
   isOpen: boolean;
@@ -212,6 +217,7 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
               </div>
 
               <button
+                type="button"
                 onClick={onClose}
                 className="p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors cursor-pointer"
               >
@@ -234,45 +240,19 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
                   {step === 1 && (
                     <div className="space-y-6 max-w-xl mx-auto py-4">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">
-                          Campaign Name
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Outstanding Invoice Reminder - June"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="w-full px-4 py-2.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                        />
+                        <Label htmlFor="camp-name">Campaign Name</Label>
+                        <Input id="camp-name" required placeholder="e.g. Outstanding Invoice Reminder - June" value={name} onChange={(e) => setName(e.target.value)} />
                         <p className="text-[10px] text-slate-400">Provide a clear descriptive title for tracking logs and analytics.</p>
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">
-                          Marketing Topic / Reason
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Collecting outstanding customer payments"
-                          value={topic}
-                          onChange={(e) => setTopic(e.target.value)}
-                          className="w-full px-4 py-2.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                        />
+                        <Label htmlFor="camp-topic">Marketing Topic / Reason</Label>
+                        <Input id="camp-topic" required placeholder="e.g. Collecting outstanding customer payments" value={topic} onChange={(e) => setTopic(e.target.value)} />
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">
-                          Internal Notes
-                        </label>
-                        <textarea
-                          placeholder="Provide any additional metadata context regarding this dispatch..."
-                          rows={4}
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          className="w-full px-4 py-2.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 resize-none"
-                        />
+                        <Label htmlFor="camp-notes">Internal Notes</Label>
+                        <Textarea id="camp-notes" placeholder="Provide any additional metadata context regarding this dispatch..." rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
                       </div>
                     </div>
                   )}
@@ -424,30 +404,14 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
                             className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-850/50"
                           >
                             <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                  Schedule Date
-                                </label>
-                                <input
-                                  type="date"
-                                  required
-                                  value={scheduleDate}
-                                  onChange={(e) => setScheduleDate(e.target.value)}
-                                  className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                                />
+                              <div className="space-y-1.5">
+                                <Label>Schedule Date</Label>
+                                <DatePicker value={scheduleDate} onChange={setScheduleDate} placeholder="Pick a date" />
                               </div>
 
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                  Schedule Time
-                                </label>
-                                <input
-                                  type="time"
-                                  required
-                                  value={scheduleTime}
-                                  onChange={(e) => setScheduleTime(e.target.value)}
-                                  className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                                />
+                              <div className="space-y-1.5">
+                                <Label htmlFor="sched-time">Schedule Time</Label>
+                                <Input id="sched-time" type="time" required value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} />
                               </div>
                             </div>
                           </motion.div>
@@ -528,42 +492,30 @@ export function CampaignBuilder({ isOpen, onClose }: CampaignBuilderProps) {
 
             {/* Footer Control Panel */}
             <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900">
-              <button
+              <Button
+                type="button"
+                variant="outline"
                 disabled={step === 1}
                 onClick={handleBackStep}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border transition-colors cursor-pointer",
-                  step === 1 
-                    ? "border-slate-100 text-slate-300 dark:border-slate-800 dark:text-slate-700 cursor-not-allowed" 
-                    : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
-                )}
+                className="gap-2"
               >
-                <ArrowLeft size={14} />
-                Back
-              </button>
+                <ArrowLeft size={14} /> Back
+              </Button>
 
               {step < 5 ? (
-                <button
-                  onClick={handleNextStep}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-850 rounded-lg shadow-sm transition-colors cursor-pointer dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-                >
-                  Continue
-                  <ArrowRight size={14} />
-                </button>
+                <Button type="button" onClick={handleNextStep} className="gap-2">
+                  Continue <ArrowRight size={14} />
+                </Button>
               ) : (
-                <button
+                <Button
+                  type="button"
                   onClick={handleLaunch}
                   disabled={isLoading}
-                  className={cn(
-                    "flex items-center gap-2 px-5 py-2 text-xs font-extrabold rounded-lg shadow-lg transition-all",
-                    isLoading
-                      ? "bg-emerald-500/60 text-white cursor-not-allowed shadow-emerald-500/10"
-                      : "text-white bg-emerald-500 hover:bg-emerald-600 cursor-pointer shadow-emerald-500/25 animate-pulse"
-                  )}
+                  className={cn("gap-2", !isLoading && "animate-pulse shadow-emerald-500/25")}
                 >
                   <Check size={14} />
                   {isLoading ? "Processing..." : sendOption === "now" ? "Launch Campaign" : "Schedule Campaign"}
-                </button>
+                </Button>
               )}
             </div>
 

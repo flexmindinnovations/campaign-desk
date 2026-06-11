@@ -1,18 +1,22 @@
 import * as React from "react";
 import { useStore } from "../../store/useStore";
-import { 
-  Search, 
-  Plus, 
+import { api } from "../../services/api";
+import {
+  Search,
+  Plus,
   Receipt,
-  Eye, 
+  Eye,
   RefreshCw,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Bell
 } from "lucide-react";
 import { Card, CardContent } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { formatDate } from "../../components/ui/utils";
 import { toast } from "../../components/ui/Toast";
+import { Input } from "../../components/ui/Input";
+import { Button } from "../../components/ui/Button";
 import { InvoiceCreateModal } from "./InvoiceCreateModal";
 import { InvoiceDetailModal } from "./InvoiceDetailModal";
 import type { Invoice } from "../../types/database";
@@ -31,6 +35,19 @@ export function InvoicesList() {
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = React.useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [sendingReminderFor, setSendingReminderFor] = React.useState<number | null>(null);
+
+  const handleSendReminder = async (invoiceId: number) => {
+    setSendingReminderFor(invoiceId);
+    try {
+      await api.sendPaymentReminder(invoiceId);
+      toast.success("Payment reminder sent via WhatsApp.");
+    } catch {
+      toast.error("Failed to send payment reminder.");
+    } finally {
+      setSendingReminderFor(null);
+    }
+  };
 
   React.useEffect(() => {
     fetchInvoices();
@@ -91,24 +108,12 @@ export function InvoicesList() {
         </div>
 
         <div className="flex gap-2">
-          {/* Refresh */}
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing || !isApiConnected}
-            className="flex items-center justify-center p-2 text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-xs transition-colors cursor-pointer dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800/80 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Refresh from Odoo"
-          >
+          <Button type="button" variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing || !isApiConnected} title="Refresh from Odoo">
             <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-          </button>
-          
-          {/* Add Invoice */}
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-          >
-            <Plus size={14} />
-            New Invoice
-          </button>
+          </Button>
+          <Button type="button" onClick={() => setIsCreateOpen(true)} className="gap-2">
+            <Plus size={14} /> New Invoice
+          </Button>
         </div>
       </div>
 
@@ -162,14 +167,12 @@ export function InvoicesList() {
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             {/* Search */}
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-              <input
-                type="text"
+            <div className="w-full md:max-w-md">
+              <Input
                 placeholder="Search invoices by number or customer name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:outline-hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                leftIcon={<Search size={14} />}
               />
             </div>
 
@@ -183,6 +186,7 @@ export function InvoicesList() {
                   { id: "posted", label: "Confirmed" }
                 ].map((s) => (
                   <button
+                    type="button"
                     key={s.id}
                     onClick={() => setStateFilter(s.id as any)}
                     className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider transition-all cursor-pointer ${
@@ -204,6 +208,7 @@ export function InvoicesList() {
                   { id: "not_paid", label: "Unpaid" }
                 ].map((s) => (
                   <button
+                    type="button"
                     key={s.id}
                     onClick={() => setPaymentFilter(s.id as any)}
                     className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider transition-all cursor-pointer ${
@@ -269,14 +274,31 @@ export function InvoicesList() {
                           {invoice.payment_state === "paid" ? "Paid" : "Not Paid"}
                         </Badge>
                       </td>
-                      <td className="p-4 pr-6 text-right flex justify-end gap-2">
-                        <button
-                          onClick={() => setSelectedInvoiceId(invoice.id)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-md shadow-xs transition-colors cursor-pointer dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800/80"
-                        >
-                          <Eye size={12} />
-                          Details
-                        </button>
+                      <td className="p-4 pr-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          {invoice.payment_state !== "paid" && invoice.state === "posted" && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={sendingReminderFor === invoice.id}
+                              onClick={() => handleSendReminder(invoice.id)}
+                              className="gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-50 hover:border-amber-300 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/20"
+                            >
+                              <Bell size={11} />
+                              {sendingReminderFor === invoice.id ? "Sending…" : "Remind"}
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedInvoiceId(invoice.id)}
+                            className="gap-1.5"
+                          >
+                            <Eye size={11} /> Details
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );

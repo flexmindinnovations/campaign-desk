@@ -1,18 +1,14 @@
 import * as React from "react";
 import { useStore } from "../../store/useStore";
-import { 
-  Key, 
-  Database, 
-  Sliders, 
-  Check, 
-  Eye, 
-  EyeOff
-} from "lucide-react";
+import { Key, Database, Sliders, Check, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { toast } from "../../components/ui/Toast";
 import { cn, formatDate } from "../../components/ui/utils";
+import { Input } from "../../components/ui/Input";
+import { Label } from "../../components/ui/Label";
+import { Button } from "../../components/ui/Button";
 
 export function SettingsPanel() {
   const whatsappSettings = useStore(state => state.whatsappSettings);
@@ -109,12 +105,10 @@ export function SettingsPanel() {
         </div>
 
         {/* Wipe action */}
-        <button
-          onClick={handleFullWipe}
-          className="px-3 py-1.5 font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg shadow-xs cursor-pointer dark:bg-rose-950/20 dark:border-rose-900/50 dark:text-rose-400"
-        >
+        <Button type="button" variant="outline" onClick={handleFullWipe}
+          className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/20">
           Wipe Workspace Data
-        </button>
+        </Button>
       </div>
 
       {/* Tab selectors card */}
@@ -157,56 +151,36 @@ export function SettingsPanel() {
           <CardContent>
             <form onSubmit={handleWhatsAppSave} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-slate-400">WhatsApp Phone Number ID</label>
-                  <input
-                    type="text"
-                    required
-                    value={phoneId}
-                    onChange={(e) => setPhoneId(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="wa-phone-id">WhatsApp Phone Number ID</Label>
+                  <Input id="wa-phone-id" required value={phoneId} onChange={(e) => setPhoneId(e.target.value)} />
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-slate-400">Business Account ID</label>
-                  <input
-                    type="text"
-                    required
-                    value={bizId}
-                    onChange={(e) => setBizId(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="wa-biz-id">Business Account ID</Label>
+                  <Input id="wa-biz-id" required value={bizId} onChange={(e) => setBizId(e.target.value)} />
                 </div>
               </div>
 
-              <div className="space-y-1 relative">
-                <label className="text-slate-400">System Bearer Token (Permanent Page Token)</label>
-                <div className="relative">
-                  <input
-                    type={showToken ? "text" : "password"}
-                    required
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    className="w-full pl-3.5 pr-10 py-2.5 text-xs font-mono font-bold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 truncate"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowToken(!showToken)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-655 cursor-pointer"
-                  >
-                    {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="wa-token">System Bearer Token (Permanent Page Token)</Label>
+                <Input
+                  id="wa-token"
+                  type={showToken ? "text" : "password"}
+                  required
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  className="font-mono"
+                  rightIcon={
+                    <button type="button" onClick={() => setShowToken(!showToken)} className="cursor-pointer">
+                      {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  }
+                />
               </div>
 
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-md transition-colors cursor-pointer mt-6"
-              >
-                <Check size={14} />
-                Save API Credentials
-              </button>
+              <Button type="submit" className="mt-2 gap-2">
+                <Check size={14} /> Save API Credentials
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -230,49 +204,25 @@ export function SettingsPanel() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleOdooSave} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-slate-400">Odoo URL Instance</label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://company.odoo.com"
-                  value={odooUrl}
-                  onChange={(e) => setOdooUrl(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="odoo-url">Odoo URL Instance</Label>
+                <Input id="odoo-url" type="url" required placeholder="https://company.odoo.com" value={odooUrl} onChange={(e) => setOdooUrl(e.target.value)} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-slate-400">Odoo Database Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={odooDb}
-                    onChange={(e) => setOdooDb(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="odoo-db">Odoo Database Name</Label>
+                  <Input id="odoo-db" required value={odooDb} onChange={(e) => setOdooDb(e.target.value)} />
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-slate-400">Username / Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={odooUser}
-                    onChange={(e) => setOdooUser(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="odoo-user">Username / Email</Label>
+                  <Input id="odoo-user" type="email" required value={odooUser} onChange={(e) => setOdooUser(e.target.value)} />
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-md transition-colors cursor-pointer mt-6"
-              >
-                <Check size={14} />
-                Save ERP Connection
-              </button>
+              <Button type="submit" className="mt-2 gap-2">
+                <Check size={14} /> Save ERP Connection
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -288,31 +238,15 @@ export function SettingsPanel() {
           <CardContent>
             <form onSubmit={handleSystemSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-slate-400">Campaign Batch Size</label>
-                  <input
-                    type="number"
-                    min={5}
-                    max={200}
-                    required
-                    value={batchSize}
-                    onChange={(e) => setBatchSize(Number(e.target.value))}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="batch-size">Campaign Batch Size</Label>
+                  <Input id="batch-size" type="number" min={5} max={200} required value={batchSize} onChange={(e) => setBatchSize(Number(e.target.value))} />
                   <p className="text-[10px] text-slate-400 font-sans">Number of messages sent in a single batch block (standard default is 50).</p>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-400">Max Retry Attempts</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={5}
-                    required
-                    value={retries}
-                    onChange={(e) => setRetries(Number(e.target.value))}
-                    className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="retry-count">Max Retry Attempts</Label>
+                  <Input id="retry-count" type="number" min={1} max={5} required value={retries} onChange={(e) => setRetries(Number(e.target.value))} />
                   <p className="text-[10px] text-slate-400 font-sans">Number of retry dispatches before marking message status as FAILED.</p>
                 </div>
               </div>
@@ -320,11 +254,12 @@ export function SettingsPanel() {
               {/* Slider for delay */}
               <div className="space-y-2.5">
                 <div className="flex justify-between items-baseline">
-                  <label className="text-slate-400">Inter-Message Batch Delay (seconds)</label>
+                  <Label>Inter-Message Batch Delay (seconds)</Label>
                   <span className="font-mono text-emerald-500 font-extrabold text-sm">{delay} seconds</span>
                 </div>
                 <input
                   type="range"
+                  aria-label="Inter-message batch delay in seconds"
                   min={0.5}
                   max={10}
                   step={0.5}
@@ -335,13 +270,9 @@ export function SettingsPanel() {
                 <p className="text-[10px] text-slate-400 font-sans">Throttle latency between individual messages in a batch. Prevents Meta Graph abuse flags.</p>
               </div>
 
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-md transition-colors cursor-pointer mt-6"
-              >
-                <Check size={14} />
-                Save Dispatch Parameters
-              </button>
+              <Button type="submit" className="mt-2 gap-2">
+                <Check size={14} /> Save Dispatch Parameters
+              </Button>
             </form>
           </CardContent>
         </Card>
