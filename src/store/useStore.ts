@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Contact, Campaign, CampaignMessage, WhatsAppTemplate, RecentActivity, WhatsAppSettings, OdooSettings, SystemSettings, CampaignAnalytics, DeliveryStatus, Invoice, TemplateComponent } from '../types/database';
+import type { Contact, Campaign, CampaignMessage, WhatsAppTemplate, RecentActivity, WhatsAppSettings, OdooSettings, SystemSettings, CampaignAnalytics, Invoice, TemplateComponent } from '../types/database';
 import { api } from '../services/api';
 import { toast } from '../components/ui/Toast';
 
