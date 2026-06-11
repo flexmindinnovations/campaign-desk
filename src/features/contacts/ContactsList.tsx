@@ -54,6 +54,7 @@ export function ContactsList() {
   const addManualContact = useStore(state => state.addManualContact);
   const messages = useStore(state => state.messages);
   const campaigns = useStore(state => state.campaigns);
+  const fetchCampaigns = useStore(state => state.fetchCampaigns);
   const templates = useStore(state => state.templates);
   const sendChatMessage = useStore(state => state.sendChatMessage);
 
@@ -267,6 +268,7 @@ export function ContactsList() {
   const handleRowClick = (id: number) => {
     setDrawerContactId(id);
     setDrawerSubTab("profile");
+    fetchCampaigns(); // lazy-load campaigns only when drawer opens
   };
 
   // Contact history loaders
@@ -333,6 +335,7 @@ export function ContactsList() {
                 { id: "manual", label: "Manual Entries" }
               ].map((s) => (
                 <button
+                  type="button"
                   key={s.id}
                   onClick={() => setSourceFilter(s.id as any)}
                   className={`px-3 py-1.5 text-[11px] font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer border ${
@@ -441,6 +444,7 @@ export function ContactsList() {
 
                 <button
                   type="button"
+                  aria-label="Close contact details"
                   onClick={() => setDrawerContactId(null)}
                   className="p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
@@ -457,6 +461,7 @@ export function ContactsList() {
                   { id: "send_message", label: "Send Message", icon: Send }
                 ].map((t) => (
                   <button
+                    type="button"
                     key={t.id}
                     onClick={() => setDrawerSubTab(t.id as any)}
                     className={cn(
@@ -606,12 +611,7 @@ export function ContactsList() {
                         <span className="text-[9px] text-slate-400 font-mono capitalize">{messageType} message</span>
                       </div>
                       
-                      <div 
-                        className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-end space-y-1 relative overflow-hidden min-h-[110px] bg-[#efeae2] dark:bg-[#0b141a]"
-                        style={{
-                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%239C92AC' fill-opacity='0.04'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zM10 10c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10S0 25.523 0 20s4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40-8c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zM30 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z'/%3E%3C/g%3E%3C/svg%3E")`
-                        }}
-                      >
+                      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-end space-y-1 relative overflow-hidden min-h-[110px] bg-[#efeae2] dark:bg-[#0b141a] wa-bubble-bg">
                         <div className="relative p-2.5 rounded-lg max-w-[88%] self-end shadow-sm bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] border border-[#c1e8bb] dark:border-[#004d3e] flex flex-col space-y-1">
                           <p className="text-[11px] leading-normal font-sans whitespace-pre-wrap pr-10 pb-1.5">
                             {getInterpolatedPreviewText()}
@@ -787,6 +787,8 @@ export function ContactsList() {
                   Add Manual Contact
                 </h3>
                 <button
+                  type="button"
+                  aria-label="Close add contact form"
                   onClick={() => setIsAddFormOpen(false)}
                   className="p-1 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >

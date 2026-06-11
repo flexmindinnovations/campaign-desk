@@ -42,6 +42,9 @@ interface StoreState {
   // Timestamps (ms) of last successful fetch — used to skip redundant re-fetches
   lastFetched: { contacts: number | null; campaigns: number | null; invoices: number | null };
 
+  // Campaign fetch action (lazy, per-page — not part of initStore bootstrap)
+  fetchCampaigns: (force?: boolean) => Promise<void>;
+
   // Theme Actions
   toggleTheme: () => void;
   setTheme: (theme: 'light' | 'dark') => void;
@@ -228,59 +231,58 @@ export const useStore = create<StoreState>((set, get) => ({
   // Navigation Actions
   setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
 
-  // API Actions
+  // API Actions — bootstrap: contacts only (campaigns are fetched lazily per-page)
   initStore: async () => {
-    const STALE_MS = 2 * 60 * 1000; // 2 minutes
+    const STALE_MS = 2 * 60 * 1000;
     const { lastFetched } = get();
     const now = Date.now();
     const contactsFresh = lastFetched.contacts !== null && now - lastFetched.contacts < STALE_MS;
-    const campaignsFresh = lastFetched.campaigns !== null && now - lastFetched.campaigns < STALE_MS;
 
-    // Skip entirely if both are still fresh (e.g. navigating between tabs)
-    if (contactsFresh && campaignsFresh) {
+    if (contactsFresh) {
       set({ isApiConnected: true });
       return;
     }
 
-    set({
-      isApiLoading: true,
-      loadingState: {
-        ...get().loadingState,
-        contacts: !contactsFresh,
-        campaigns: !campaignsFresh,
-      },
-    });
-
+    set({ isApiLoading: true, loadingState: { ...get().loadingState, contacts: true } });
     try {
-      const [contacts, campaigns] = await Promise.all([
-        contactsFresh ? Promise.resolve(get().contacts) : api.getContacts(),
-        campaignsFresh ? Promise.resolve(get().campaigns) : api.getCampaigns(),
-      ]);
-
+      const contacts = await api.getContacts();
       set({
         contacts,
-        campaigns,
         isApiConnected: true,
         isApiLoading: false,
-        loadingState: { ...get().loadingState, contacts: false, campaigns: false },
-        lastFetched: {
-          ...get().lastFetched,
-          contacts: contactsFresh ? lastFetched.contacts : now,
-          campaigns: campaignsFresh ? lastFetched.campaigns : now,
-        },
+        loadingState: { ...get().loadingState, contacts: false },
+        lastFetched: { ...get().lastFetched, contacts: now },
       });
-
-      if (!contactsFresh || !campaignsFresh) {
-        toast.success("Synchronized with live Render API & Supabase PostgreSQL.");
-      }
+      toast.success("Synchronized with live Render API & Supabase PostgreSQL.");
     } catch (error: unknown) {
       console.error(error);
       set({
         isApiConnected: false,
         isApiLoading: false,
-        loadingState: { ...get().loadingState, contacts: false, campaigns: false },
+        loadingState: { ...get().loadingState, contacts: false },
       });
       toast.info("Render backend offline. Running in premium simulator mode.");
+    }
+  },
+
+  fetchCampaigns: async (force = false) => {
+    const STALE_MS = 2 * 60 * 1000;
+    const { lastFetched } = get();
+    const fresh = lastFetched.campaigns !== null && Date.now() - lastFetched.campaigns < STALE_MS;
+    if (!force && fresh) return;
+
+    set({ loadingState: { ...get().loadingState, campaigns: true } });
+    try {
+      const campaigns = await api.getCampaigns();
+      set({
+        campaigns,
+        loadingState: { ...get().loadingState, campaigns: false },
+        lastFetched: { ...get().lastFetched, campaigns: Date.now() },
+      });
+    } catch (error: unknown) {
+      console.error(error);
+      set({ loadingState: { ...get().loadingState, campaigns: false } });
+      toast.error("Failed to load campaigns.");
     }
   },
 
@@ -330,8 +332,7 @@ export const useStore = create<StoreState>((set, get) => ({
       }
 
       try {
-        const updated = await api.getCampaigns();
-        set({ campaigns: updated });
+        await get().fetchCampaigns(true);
       } catch (error: unknown) {
         console.error(error);
       }
@@ -379,8 +380,7 @@ export const useStore = create<StoreState>((set, get) => ({
   addCampaign: async (campaignData) => {
     try {
       const newCamp = await api.createCampaign(campaignData);
-      const refreshed = await api.getCampaigns();
-      set({ campaigns: refreshed });
+      await get().fetchCampaigns(true);
 
       get().addActivity({
         type: 'campaign_started',
@@ -399,8 +399,7 @@ export const useStore = create<StoreState>((set, get) => ({
   startCampaign: async (campaignId) => {
     try {
       const updatedCamp = await api.startCampaign(campaignId);
-      const refreshed = await api.getCampaigns();
-      set({ campaigns: refreshed });
+      await get().fetchCampaigns(true);
 
       // Dynamic logs sync
       await get().fetchCampaignDetailsAndAnalytics(campaignId);
@@ -423,8 +422,7 @@ export const useStore = create<StoreState>((set, get) => ({
   cancelCampaign: async (campaignId) => {
     try {
       const updatedCamp = await api.cancelCampaign(campaignId);
-      const refreshed = await api.getCampaigns();
-      set({ campaigns: refreshed });
+      await get().fetchCampaigns(true);
 
       await get().fetchCampaignDetailsAndAnalytics(campaignId);
       toast.success(`Campaign "${updatedCamp.name}" cancelled.`);
@@ -439,7 +437,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const original = campaigns.find(c => c.id === campaignId);
     if (!original) return;
     try {
-      const newCamp = await api.createCampaign({
+      await api.createCampaign({
         name: `${original.name} (Copy)`,
         topic: original.topic || 'WhatsApp Outreach',
         template_name: original.template_name,
@@ -448,9 +446,8 @@ export const useStore = create<StoreState>((set, get) => ({
         scheduled_at: null
       });
 
-      const refreshed = await api.getCampaigns();
-      set({ campaigns: refreshed });
-      toast.success(`Duplicated to draft "${newCamp.name}".`);
+      await get().fetchCampaigns(true);
+      toast.success("Campaign duplicated as a new draft.");
     } catch (error: unknown) {
       console.error(error);
       toast.error("Failed to duplicate campaign on backend.");

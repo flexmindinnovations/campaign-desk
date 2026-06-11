@@ -31,15 +31,17 @@ export function CampaignList() {
   const getCampaignAnalytics = useStore(state => state.getCampaignAnalytics);
   const startPollingCampaigns = useStore(state => state.startPollingCampaigns);
   const stopPollingCampaigns = useStore(state => state.stopPollingCampaigns);
+  const fetchCampaigns = useStore(state => state.fetchCampaigns);
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [isBuilderOpen, setIsBuilderOpen] = React.useState(false);
 
   React.useEffect(() => {
+    fetchCampaigns();
     startPollingCampaigns();
     return () => stopPollingCampaigns();
-  }, [startPollingCampaigns, stopPollingCampaigns]);
+  }, [fetchCampaigns, startPollingCampaigns, stopPollingCampaigns]);
 
   // Filter campaigns
   const filteredCampaigns = campaigns.filter(campaign => {

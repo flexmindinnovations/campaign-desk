@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useStore } from "../../store/useStore";
 import { useNavigate } from "react-router-dom";
 import {
@@ -24,6 +25,9 @@ export function Dashboard() {
   const campaigns = useStore(state => state.campaigns);
   const messages = useStore(state => state.messages);
   const activities = useStore(state => state.activities);
+  const fetchCampaigns = useStore(state => state.fetchCampaigns);
+
+  React.useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
   
   // Computations
   const totalContacts = contacts.length;
