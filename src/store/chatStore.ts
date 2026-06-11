@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ConversationMessage, ConversationSummary, WsStatus } from '../types/database';
+import type { ConversationMessage, ConversationSummary, MessageDeliveryStatus, WsStatus } from '../types/database';
 import { api } from '../services/api';
 
 interface ChatState {
@@ -12,8 +12,8 @@ interface ChatState {
   setActivePhone: (phone: string) => Promise<void>;
   setConversations: (list: ConversationSummary[]) => void;
   upsertMessage: (msg: ConversationMessage) => void;
+  updateMessageStatus: (contact_phone: string, message_id: number, status: MessageDeliveryStatus) => void;
   seedHistory: (msgs: ConversationMessage[]) => void;
-  // Sends as inbound customer message → triggers AI reply pipeline
   sendMessage: (phone: string, content: string) => Promise<void>;
   loadConversations: () => Promise<void>;
 }
@@ -84,6 +84,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
 
+  updateMessageStatus: (contact_phone, message_id, status) => {
+    set((s) => {
+      const existing = s.messages[contact_phone];
+      if (!existing) return s;
+      return {
+        messages: {
+          ...s.messages,
+          [contact_phone]: existing.map((m) =>
+            m.id === message_id ? { ...m, delivery_status: status } : m
+          ),
+        },
+      };
+    });
+  },
+
   seedHistory: (msgs) => {
     if (!msgs.length) return;
     set((s) => {
@@ -106,9 +121,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const optimistic: ConversationMessage = {
       id: tempId,
       contact_phone: phone,
-      role: 'user', // shows on RIGHT (you sent it); triggers AI reply
+      role: 'user',
       content,
       wamid: null,
+      delivery_status: null,
       created_at: new Date().toISOString(),
     };
     get().upsertMessage(optimistic);

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Search, Send, Smartphone, Wifi, WifiOff, Loader2, Plus, X, Sparkles, FileText, ExternalLink } from "lucide-react";
+import { Search, Send, Smartphone, Wifi, WifiOff, Loader2, Plus, X, Sparkles, FileText, ExternalLink, Check, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../components/ui/utils";
@@ -88,6 +88,19 @@ function WsStatusBanner({ status }: { status: string }) {
 // role=user  → RIGHT (you sent this message)
 // role=assistant → LEFT (AI replied)
 
+function DeliveryTick({ status }: { status: string | null }) {
+  if (!status) return null;
+  if (status === "read")
+    return <CheckCheck size={12} className="text-blue-500 shrink-0" />;
+  if (status === "delivered")
+    return <CheckCheck size={12} className="text-slate-400 shrink-0" />;
+  if (status === "sent")
+    return <Check size={12} className="text-slate-400 shrink-0" />;
+  if (status === "failed")
+    return <X size={12} className="text-red-400 shrink-0" />;
+  return null;
+}
+
 function MessageBubble({ msg }: { msg: ConversationMessage }) {
   const isSent = msg.role === "user";
   const isPdf = msg.content.startsWith("📎 ") && msg.content.endsWith(".pdf");
@@ -153,12 +166,13 @@ function MessageBubble({ msg }: { msg: ConversationMessage }) {
           </>
         ) : (
           <>
-            <p className="leading-relaxed break-words pr-12">{renderMarkdown(msg.content)}</p>
+            <p className="leading-relaxed break-words pr-16">{renderMarkdown(msg.content)}</p>
             <span className={cn(
-              "absolute right-3 bottom-1.5 text-[10px] font-mono select-none",
+              "absolute right-2 bottom-1.5 flex items-center gap-0.5 text-[10px] font-mono select-none",
               isSent ? "text-emerald-700/60 dark:text-emerald-300/50" : "text-slate-400"
             )}>
               {formatTime(msg.created_at)}
+              {!isSent && <DeliveryTick status={msg.delivery_status} />}
             </span>
           </>
         )}

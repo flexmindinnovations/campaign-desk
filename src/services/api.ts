@@ -105,6 +105,23 @@ export const api = {
     };
   },
 
+  deleteContact: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/contacts/${id}`, { method: 'DELETE' });
+    if (!res.ok && res.status !== 204) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to delete contact' }));
+      throw new Error(err.detail || 'Failed to delete contact');
+    }
+  },
+
+  sendPaymentReminder: async (invoiceId: number): Promise<{ status: string; phone: string; invoice: string }> => {
+    const res = await fetch(`${BASE_URL}/invoices/${invoiceId}/reminder`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to send reminder' }));
+      throw new Error(err.detail || 'Failed to send reminder');
+    }
+    return res.json();
+  },
+
   /**
    * Campaigns endpoints
    */

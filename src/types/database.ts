@@ -123,6 +123,7 @@ export interface Invoice {
 // ── Conversation / Chat ───────────────────────────────────────────────────────
 
 export type MessageRole = 'user' | 'assistant';
+export type MessageDeliveryStatus = 'sent' | 'delivered' | 'read' | 'failed';
 
 export type WsStatus = 'connected' | 'disconnected' | 'reconnecting';
 
@@ -132,6 +133,7 @@ export interface ConversationMessage {
   role: MessageRole;
   content: string;
   wamid: string | null;
+  delivery_status: MessageDeliveryStatus | null;
   created_at: string;
 }
 
@@ -143,9 +145,21 @@ export interface ConversationSummary {
   message_count: number;
 }
 
+export interface WsStatusUpdate {
+  type: 'status_update';
+  wamid: string;
+  status: MessageDeliveryStatus;
+  message_id: number;
+  contact_phone: string;
+}
+
 export interface WsEvent {
-  type: 'new_message' | 'history';
+  type: 'new_message' | 'history' | 'status_update';
   message?: ConversationMessage;
   messages?: ConversationMessage[];
+  wamid?: string;
+  status?: MessageDeliveryStatus;
+  message_id?: number;
+  contact_phone?: string;
 }
 

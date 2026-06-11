@@ -14,7 +14,7 @@ export function useWebSocket() {
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmounted = useRef(false);
 
-  const { setWsStatus, upsertMessage, seedHistory } = useChatStore();
+  const { setWsStatus, upsertMessage, updateMessageStatus, seedHistory } = useChatStore();
 
   const connect = useCallback(() => {
     if (unmounted.current) return;
@@ -35,6 +35,8 @@ export function useWebSocket() {
           seedHistory(data.messages);
         } else if (data.type === 'new_message' && data.message) {
           upsertMessage(data.message);
+        } else if (data.type === 'status_update' && data.message_id && data.contact_phone && data.status) {
+          updateMessageStatus(data.contact_phone, data.message_id, data.status);
         }
       } catch {
         // malformed frame — ignore
@@ -54,7 +56,7 @@ export function useWebSocket() {
     ws.onerror = () => {
       ws.close();
     };
-  }, [setWsStatus, upsertMessage, seedHistory]);
+  }, [setWsStatus, upsertMessage, updateMessageStatus, seedHistory]);
 
   useEffect(() => {
     unmounted.current = false;
